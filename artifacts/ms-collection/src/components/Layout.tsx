@@ -7,7 +7,7 @@ import {
   Settings,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import logoSrc from "@assets/image_1779255699721.png";
+import logoSrc from "../assets/logo.png";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -59,6 +59,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
+      {/* Mobile top header */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-sidebar border-b border-border flex items-center gap-3 px-4 py-3">
+        <img src={logoSrc} alt="MS Collection Logo" className="w-8 h-8 object-contain" />
+        <div>
+          <p className="text-sm font-semibold text-sidebar-foreground leading-none">MS Collection</p>
+          <p className="text-xs text-muted-foreground">Manajemen Nota</p>
+        </div>
+      </div>
+
       {/* Mobile bottom nav */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar border-t border-border flex">
         {navItems.map((item) => {
@@ -73,7 +82,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 )}
               >
                 <Icon className="w-5 h-5" />
-                <span className="hidden xs:block">{item.label}</span>
+                <span>{item.label}</span>
               </div>
             </Link>
           );
@@ -81,7 +90,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto pb-20 md:pb-0">
+      <main className="flex-1 overflow-auto pb-20 md:pb-0 pt-14 md:pt-0">
         <motion.div
           key={location}
           initial={{ opacity: 0, y: 8 }}

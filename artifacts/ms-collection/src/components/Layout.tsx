@@ -5,9 +5,9 @@ import {
   FilePlus,
   History,
   Settings,
-  Package,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import logoSrc from "@assets/image_1779255699721.png";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -24,9 +24,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-60 border-r border-border bg-sidebar shrink-0">
         <div className="flex items-center gap-3 px-6 py-6 border-b border-border">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <Package className="w-4 h-4 text-primary-foreground" />
-          </div>
+          <img src={logoSrc} alt="MS Collection Logo" className="w-9 h-9 object-contain" />
           <div>
             <p className="text-sm font-semibold text-sidebar-foreground leading-none">MS Collection</p>
             <p className="text-xs text-muted-foreground mt-0.5">Manajemen Nota</p>

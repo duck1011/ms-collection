@@ -36,17 +36,17 @@ export function todayISO(): string {
   return new Date().toISOString().split("T")[0];
 }
 
+// Format: MS + M (month, no padding) + YY + 3-digit seq
+// Example: May 2026 → prefix "MS526", code "MS526001"
 export function generateReceiptCode(existingCodes: string[]): string {
   const now = new Date();
-  const dd = String(now.getDate()).padStart(2, "0");
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const m = String(now.getMonth() + 1); // no padding
   const yy = String(now.getFullYear()).slice(-2);
-  const prefix = `MS${dd}${mm}${yy}-`;
+  const prefix = `MS${m}${yy}`;
 
-  const todayCodes = existingCodes.filter((c) => c.startsWith(prefix));
-  const maxSeq = todayCodes.reduce((max, code) => {
-    const parts = code.split("-");
-    const seq = parseInt(parts[parts.length - 1], 10);
+  const monthCodes = existingCodes.filter((c) => c.startsWith(prefix));
+  const maxSeq = monthCodes.reduce((max, code) => {
+    const seq = parseInt(code.slice(prefix.length), 10);
     return isNaN(seq) ? max : Math.max(max, seq);
   }, 0);
 

@@ -42,15 +42,23 @@ const clientSchema = z.object({
   date: z.string().min(1, "Tanggal wajib diisi"),
 });
 
-const itemSchema = z.object({
-  productType: z.string().min(1),
-  size: z.string().min(1),
-  quantity: z.coerce.number().min(1),
-  unitPrice: z.coerce.number().min(0),
+const sizeBreakdownSchema = z.object({
+  XS: z.coerce.number().min(0).default(0),
+  S: z.coerce.number().min(0).default(0),
+  M: z.coerce.number().min(0).default(0),
+  L: z.coerce.number().min(0).default(0),
+  XL: z.coerce.number().min(0).default(0),
+  XXL: z.coerce.number().min(0).default(0),
+});
+
+const entrySchema = z.object({
+  productType: z.string().min(1, "Pilih produk"),
+  unitPrice: z.coerce.number().min(0, "Harga tidak valid"),
+  sizes: sizeBreakdownSchema,
 });
 
 const orderSchema = z.object({
-  items: z.array(itemSchema).min(1, "Minimal 1 item"),
+  entries: z.array(entrySchema).min(1),
 });
 
 const paymentSchema = z.object({
@@ -63,7 +71,18 @@ type ClientData = z.infer<typeof clientSchema>;
 type OrderData = z.infer<typeof orderSchema>;
 type PaymentData = z.infer<typeof paymentSchema>;
 
+const defaultEntry = () => ({
+  productType: "Seragam Sekolah" as ProductType,
+  unitPrice: 0,
+  sizes: { XS: 0, S: 0, M: 0, L: 0, XL: 0, XXL: 0 },
+});
+
 const STEPS = ["Informasi Klien", "Informasi Pesanan", "Pembayaran", "Konfirmasi"];
+
+function calcEntryTotal(sizes: Record<string, number>, unitPrice: number) {
+  const totalQty = SIZES.reduce((s, sz) => s + (Number(sizes[sz]) || 0), 0);
+  return { totalQty, subtotal: totalQty * (Number(unitPrice) || 0) };
+}
 
 export default function CreateReceipt() {
   const [step, setStep] = useState(0);
@@ -90,14 +109,12 @@ export default function CreateReceipt() {
 
   const orderForm = useForm<OrderData>({
     resolver: zodResolver(orderSchema),
-    defaultValues: {
-      items: [{ productType: "Seragam Sekolah", size: "M", quantity: 1, unitPrice: 0 }],
-    },
+    defaultValues: { entries: [defaultEntry()] },
   });
 
   const { fields, append, remove } = useFieldArray({
     control: orderForm.control,
-    name: "items",
+    name: "entries",
   });
 
   const paymentForm = useForm<PaymentData>({
@@ -105,25 +122,40 @@ export default function CreateReceipt() {
     defaultValues: { paymentStatus: "UNPAID", paidAmount: 0, notes: "" },
   });
 
-  const watchItems = orderForm.watch("items");
-  const totalPrice = watchItems.reduce((s, item) => {
-    const qty = Number(item.quantity) || 0;
-    const price = Number(item.unitPrice) || 0;
-    return s + qty * price;
+  const watchEntries = orderForm.watch("entries");
+
+  const grandTotal = watchEntries.reduce((sum, entry) => {
+    const { subtotal } = calcEntryTotal(entry.sizes, entry.unitPrice);
+    return sum + subtotal;
   }, 0);
 
   const watchStatus = paymentForm.watch("paymentStatus");
   const watchPaid = paymentForm.watch("paidAmount");
 
+  // Flatten size-breakdown entries into OrderItems (one row per size with qty > 0)
+  const flattenEntries = (entries: OrderData["entries"]): OrderItem[] => {
+    const items: OrderItem[] = [];
+    for (const entry of entries) {
+      const unitPrice = Number(entry.unitPrice) || 0;
+      for (const sz of SIZES) {
+        const qty = Number(entry.sizes[sz as Size]) || 0;
+        if (qty > 0) {
+          items.push({
+            productType: entry.productType as ProductType,
+            size: sz as Size,
+            quantity: qty,
+            unitPrice,
+            subtotal: qty * unitPrice,
+          });
+        }
+      }
+    }
+    return items;
+  };
+
   const buildReceipt = (payment: PaymentData): Receipt => {
     const code = generateReceiptCode(receipts.map((r) => r.receiptCode));
-    const items: OrderItem[] = orderData!.items.map((i) => ({
-      productType: i.productType as ProductType,
-      size: i.size as Size,
-      quantity: Number(i.quantity),
-      unitPrice: Number(i.unitPrice),
-      subtotal: Number(i.quantity) * Number(i.unitPrice),
-    }));
+    const items = flattenEntries(orderData!.entries);
     const total = items.reduce((s, i) => s + i.subtotal, 0);
     let paid = 0;
     if (payment.paymentStatus === "PAID") paid = total;
@@ -151,21 +183,18 @@ export default function CreateReceipt() {
     setSaving(true);
     try {
       await addReceipt(receipt);
-      if (withPDF) {
-        await downloadReceiptPDF(receipt, settings);
-      }
+      if (withPDF) await downloadReceiptPDF(receipt, settings);
       toast({ title: "Nota berhasil disimpan", description: receipt.receiptCode });
       setLocation("/history");
-    } catch (e) {
+    } catch {
       toast({ title: "Gagal menyimpan", variant: "destructive" });
     } finally {
       setSaving(false);
     }
   };
 
-  const previewReceipt = step === 3 && clientData && orderData
-    ? buildReceipt(paymentForm.getValues())
-    : null;
+  const previewReceipt =
+    step === 3 && clientData && orderData ? buildReceipt(paymentForm.getValues()) : null;
 
   return (
     <div className="p-6 md:p-8 max-w-2xl mx-auto space-y-8">
@@ -204,9 +233,14 @@ export default function CreateReceipt() {
       </div>
 
       <AnimatePresence mode="wait">
-        {/* Step 1 */}
+        {/* Step 1 — Client Info */}
         {step === 0 && (
-          <motion.div key="step0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+          <motion.div
+            key="step0"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
             <form
               onSubmit={clientForm.handleSubmit((data) => {
                 setClientData(data);
@@ -218,31 +252,51 @@ export default function CreateReceipt() {
                 <h2 className="text-base font-semibold">Informasi Klien</h2>
                 <div className="space-y-1.5">
                   <Label>Nama Klien</Label>
-                  <Input {...clientForm.register("clientName")} data-testid="input-client-name" placeholder="Nama lengkap" />
+                  <Input
+                    {...clientForm.register("clientName")}
+                    data-testid="input-client-name"
+                    placeholder="Nama lengkap"
+                  />
                   {clientForm.formState.errors.clientName && (
-                    <p className="text-xs text-red-500">{clientForm.formState.errors.clientName.message}</p>
+                    <p className="text-xs text-red-500">
+                      {clientForm.formState.errors.clientName.message}
+                    </p>
                   )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Nomor Telepon</Label>
-                  <Input {...clientForm.register("clientPhone")} data-testid="input-client-phone" placeholder="08xxxxxxxxxx" type="tel" />
+                  <Input
+                    {...clientForm.register("clientPhone")}
+                    data-testid="input-client-phone"
+                    placeholder="08xxxxxxxxxx"
+                    type="tel"
+                  />
                   {clientForm.formState.errors.clientPhone && (
-                    <p className="text-xs text-red-500">{clientForm.formState.errors.clientPhone.message}</p>
+                    <p className="text-xs text-red-500">
+                      {clientForm.formState.errors.clientPhone.message}
+                    </p>
                   )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Sekolah / Organisasi</Label>
-                  <Input {...clientForm.register("schoolOrOrganization")} data-testid="input-school" placeholder="Nama sekolah atau organisasi" />
+                  <Input
+                    {...clientForm.register("schoolOrOrganization")}
+                    data-testid="input-school"
+                    placeholder="Nama sekolah atau organisasi"
+                  />
                   {clientForm.formState.errors.schoolOrOrganization && (
-                    <p className="text-xs text-red-500">{clientForm.formState.errors.schoolOrOrganization.message}</p>
+                    <p className="text-xs text-red-500">
+                      {clientForm.formState.errors.schoolOrOrganization.message}
+                    </p>
                   )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Tanggal</Label>
-                  <Input {...clientForm.register("date")} data-testid="input-date" type="date" />
-                  {clientForm.formState.errors.date && (
-                    <p className="text-xs text-red-500">{clientForm.formState.errors.date.message}</p>
-                  )}
+                  <Input
+                    {...clientForm.register("date")}
+                    data-testid="input-date"
+                    type="date"
+                  />
                 </div>
               </div>
               <div className="flex justify-end">
@@ -254,112 +308,162 @@ export default function CreateReceipt() {
           </motion.div>
         )}
 
-        {/* Step 2 */}
+        {/* Step 2 — Order Info (size breakdown) */}
         {step === 1 && (
-          <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+          <motion.div
+            key="step1"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
             <form
               onSubmit={orderForm.handleSubmit((data) => {
+                const hasQty = data.entries.some((e) =>
+                  SIZES.some((sz) => (Number(e.sizes[sz as Size]) || 0) > 0)
+                );
+                if (!hasQty) {
+                  toast({
+                    title: "Isi minimal 1 ukuran",
+                    variant: "destructive",
+                  });
+                  return;
+                }
                 setOrderData(data);
                 setStep(2);
               })}
               className="space-y-5"
             >
-              <div className="bg-card border border-border rounded-2xl p-6 space-y-5">
+              <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-base font-semibold">Informasi Pesanan</h2>
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
-                    data-testid="button-add-item"
-                    onClick={() =>
-                      append({ productType: "Seragam Sekolah", size: "M", quantity: 1, unitPrice: 0 })
-                    }
+                    data-testid="button-add-product"
+                    onClick={() => append(defaultEntry())}
                   >
-                    <Plus className="w-3 h-3 mr-1" /> Tambah Item
+                    <Plus className="w-3 h-3 mr-1" /> Tambah Produk
                   </Button>
                 </div>
 
-                {fields.map((field, idx) => (
-                  <div key={field.id} className="border border-border rounded-xl p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground">Item {idx + 1}</span>
-                      {fields.length > 1 && (
-                        <button type="button" onClick={() => remove(idx)} className="text-muted-foreground hover:text-red-500 transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="col-span-2 space-y-1.5">
-                        <Label>Produk</Label>
-                        <Select
-                          value={orderForm.watch(`items.${idx}.productType`)}
-                          onValueChange={(v) => orderForm.setValue(`items.${idx}.productType`, v)}
-                        >
-                          <SelectTrigger data-testid={`select-product-${idx}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {PRODUCTS.map((p) => (
-                              <SelectItem key={p} value={p}>{p}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                {fields.map((field, idx) => {
+                  const entry = watchEntries[idx] ?? field;
+                  const { totalQty, subtotal } = calcEntryTotal(
+                    entry.sizes ?? {},
+                    entry.unitPrice
+                  );
+
+                  return (
+                    <div
+                      key={field.id}
+                      className="border border-border rounded-xl p-4 space-y-4"
+                    >
+                      {/* Product header */}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1 space-y-1.5">
+                          <Label>Produk</Label>
+                          <Select
+                            value={orderForm.watch(`entries.${idx}.productType`)}
+                            onValueChange={(v) =>
+                              orderForm.setValue(`entries.${idx}.productType`, v)
+                            }
+                          >
+                            <SelectTrigger data-testid={`select-product-${idx}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {PRODUCTS.map((p) => (
+                                <SelectItem key={p} value={p}>
+                                  {p}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {fields.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => remove(idx)}
+                            className="text-muted-foreground hover:text-red-500 transition-colors mt-5"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
+
+                      {/* Unit price */}
                       <div className="space-y-1.5">
-                        <Label>Ukuran</Label>
-                        <Select
-                          value={orderForm.watch(`items.${idx}.size`)}
-                          onValueChange={(v) => orderForm.setValue(`items.${idx}.size`, v)}
-                        >
-                          <SelectTrigger data-testid={`select-size-${idx}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SIZES.map((s) => (
-                              <SelectItem key={s} value={s}>{s}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Jumlah</Label>
-                        <Input
-                          {...orderForm.register(`items.${idx}.quantity`)}
-                          data-testid={`input-quantity-${idx}`}
-                          type="number"
-                          min={1}
-                        />
-                      </div>
-                      <div className="col-span-2 space-y-1.5">
                         <Label>Harga Satuan (Rp)</Label>
                         <Input
-                          {...orderForm.register(`items.${idx}.unitPrice`)}
+                          {...orderForm.register(`entries.${idx}.unitPrice`)}
                           data-testid={`input-price-${idx}`}
                           type="number"
                           min={0}
                           placeholder="0"
                         />
                       </div>
-                    </div>
-                    <div className="text-right text-sm font-medium text-foreground">
-                      Subtotal:{" "}
-                      {formatRupiah(
-                        (Number(orderForm.watch(`items.${idx}.quantity`)) || 0) *
-                          (Number(orderForm.watch(`items.${idx}.unitPrice`)) || 0)
-                      )}
-                    </div>
-                  </div>
-                ))}
 
+                      {/* Size breakdown grid */}
+                      <div className="space-y-2">
+                        <Label>Ukuran & Jumlah</Label>
+                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                          {SIZES.map((sz) => (
+                            <div key={sz} className="space-y-1">
+                              <p className="text-xs text-center text-muted-foreground font-medium">
+                                {sz}
+                              </p>
+                              <Input
+                                {...orderForm.register(`entries.${idx}.sizes.${sz as Size}`)}
+                                data-testid={`input-size-${idx}-${sz}`}
+                                type="number"
+                                min={0}
+                                placeholder="0"
+                                className="text-center px-1"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Entry totals */}
+                      <div className="flex items-center justify-between pt-1 border-t border-border text-sm">
+                        <span className="text-muted-foreground">
+                          Total Jumlah:{" "}
+                          <span className="font-semibold text-foreground">
+                            {totalQty} pcs
+                          </span>
+                        </span>
+                        <span className="text-muted-foreground">
+                          Subtotal:{" "}
+                          <span className="font-semibold text-foreground">
+                            {formatRupiah(subtotal)}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Grand total */}
                 <div className="flex justify-between items-center pt-2 border-t border-border">
-                  <span className="text-sm font-semibold">Total</span>
-                  <span className="text-lg font-bold" data-testid="text-total-price">{formatRupiah(totalPrice)}</span>
+                  <span className="text-sm font-semibold">Total Keseluruhan</span>
+                  <span
+                    className="text-lg font-bold"
+                    data-testid="text-total-price"
+                  >
+                    {formatRupiah(grandTotal)}
+                  </span>
                 </div>
               </div>
+
               <div className="flex justify-between">
-                <Button type="button" variant="outline" onClick={() => setStep(0)} data-testid="button-back-step1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(0)}
+                  data-testid="button-back-step1"
+                >
                   <ChevronLeft className="w-4 h-4 mr-1" /> Kembali
                 </Button>
                 <Button type="submit" data-testid="button-next-step2">
@@ -370,9 +474,14 @@ export default function CreateReceipt() {
           </motion.div>
         )}
 
-        {/* Step 3 */}
+        {/* Step 3 — Payment */}
         {step === 2 && (
-          <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+          <motion.div
+            key="step2"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
             <form
               onSubmit={paymentForm.handleSubmit(() => setStep(3))}
               className="space-y-5"
@@ -384,7 +493,10 @@ export default function CreateReceipt() {
                   <Select
                     value={watchStatus}
                     onValueChange={(v) =>
-                      paymentForm.setValue("paymentStatus", v as "PAID" | "PARTIALLY_PAID" | "UNPAID")
+                      paymentForm.setValue(
+                        "paymentStatus",
+                        v as "PAID" | "PARTIALLY_PAID" | "UNPAID"
+                      )
                     }
                   >
                     <SelectTrigger data-testid="select-payment-status">
@@ -406,22 +518,34 @@ export default function CreateReceipt() {
                       data-testid="input-paid-amount"
                       type="number"
                       min={0}
-                      max={totalPrice}
                       placeholder="0"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Sisa: {formatRupiah(Math.max(0, totalPrice - (Number(watchPaid) || 0)))}
+                      Sisa:{" "}
+                      {formatRupiah(
+                        Math.max(0, grandTotal - (Number(watchPaid) || 0))
+                      )}
                     </p>
                   </div>
                 )}
 
                 <div className="space-y-1.5">
                   <Label>Catatan (opsional)</Label>
-                  <Textarea {...paymentForm.register("notes")} data-testid="input-notes" placeholder="Catatan tambahan..." rows={3} />
+                  <Textarea
+                    {...paymentForm.register("notes")}
+                    data-testid="input-notes"
+                    placeholder="Catatan tambahan..."
+                    rows={3}
+                  />
                 </div>
               </div>
               <div className="flex justify-between">
-                <Button type="button" variant="outline" onClick={() => setStep(1)} data-testid="button-back-step2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(1)}
+                  data-testid="button-back-step2"
+                >
                   <ChevronLeft className="w-4 h-4 mr-1" /> Kembali
                 </Button>
                 <Button type="submit" data-testid="button-next-step3">
@@ -432,20 +556,35 @@ export default function CreateReceipt() {
           </motion.div>
         )}
 
-        {/* Step 4 - Preview */}
+        {/* Step 4 — Preview & Confirm */}
         {step === 3 && previewReceipt && (
-          <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
+          <motion.div
+            key="step3"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-5"
+          >
             <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="text-base font-semibold">{settings.businessName || "MS Collection"}</h2>
+                  <h2 className="text-base font-semibold">
+                    {settings.businessName || "MS Collection"}
+                  </h2>
                   {settings.businessAddress && (
-                    <p className="text-xs text-muted-foreground">{settings.businessAddress}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {settings.businessAddress}
+                    </p>
                   )}
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground">Kode Nota</p>
-                  <p className="text-sm font-mono font-bold" data-testid="text-receipt-code">{previewReceipt.receiptCode}</p>
+                  <p
+                    className="text-sm font-mono font-bold"
+                    data-testid="text-receipt-code"
+                  >
+                    {previewReceipt.receiptCode}
+                  </p>
                 </div>
               </div>
 
@@ -478,9 +617,15 @@ export default function CreateReceipt() {
                 {previewReceipt.items.map((item, i) => (
                   <div key={i} className="grid grid-cols-12 text-sm">
                     <span className="col-span-5 text-foreground">{item.productType}</span>
-                    <span className="col-span-2 text-center text-muted-foreground">{item.size}</span>
-                    <span className="col-span-2 text-center text-muted-foreground">{item.quantity}</span>
-                    <span className="col-span-3 text-right font-medium">{formatRupiah(item.subtotal)}</span>
+                    <span className="col-span-2 text-center text-muted-foreground">
+                      {item.size}
+                    </span>
+                    <span className="col-span-2 text-center text-muted-foreground">
+                      {item.quantity}
+                    </span>
+                    <span className="col-span-3 text-right font-medium">
+                      {formatRupiah(item.subtotal)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -492,12 +637,16 @@ export default function CreateReceipt() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Dibayar</span>
-                  <span className="text-green-500 font-medium">{formatRupiah(previewReceipt.paidAmount)}</span>
+                  <span className="text-green-500 font-medium">
+                    {formatRupiah(previewReceipt.paidAmount)}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Sisa</span>
                   <span className="text-red-400 font-medium">
-                    {formatRupiah(Math.max(0, previewReceipt.totalPrice - previewReceipt.paidAmount))}
+                    {formatRupiah(
+                      Math.max(0, previewReceipt.totalPrice - previewReceipt.paidAmount)
+                    )}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm items-center">
@@ -508,7 +657,12 @@ export default function CreateReceipt() {
             </div>
 
             <div className="flex justify-between gap-3">
-              <Button type="button" variant="outline" onClick={() => setStep(2)} data-testid="button-back-step3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep(2)}
+                data-testid="button-back-step3"
+              >
                 <ChevronLeft className="w-4 h-4 mr-1" /> Kembali
               </Button>
               <div className="flex gap-3">
@@ -546,6 +700,8 @@ function StatusBadge({ status }: { status: Receipt["paymentStatus"] }) {
   };
   const { label, className } = map[status];
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${className}`}>{label}</span>
+    <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${className}`}>
+      {label}
+    </span>
   );
 }

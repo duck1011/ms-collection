@@ -2,9 +2,26 @@ import { pdf } from "@react-pdf/renderer";
 import { createElement } from "react";
 import { Receipt, Settings } from "@/lib/db";
 import { formatRupiah, formatDate } from "@/lib/utils";
+import logoAssetUrl from "../assets/logo.png";
+
+async function getLogoDataUrl(): Promise<string> {
+  try {
+    const res = await fetch(logoAssetUrl);
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return "";
+  }
+}
 
 export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
-  const { Document, Page, View, Text, StyleSheet } = await import("@react-pdf/renderer");
+  const { Document, Page, View, Text, Image, StyleSheet } = await import("@react-pdf/renderer");
+  const logoDataUrl = await getLogoDataUrl();
 
   const STATUS_LABEL: Record<string, string> = {
     PAID: "Lunas",
@@ -23,22 +40,45 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       marginBottom: 20,
       borderBottom: "1px solid #e5e7eb",
       paddingBottom: 12,
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+    },
+    headerLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    logo: {
+      width: 36,
+      height: 36,
+      objectFit: "contain",
+    },
+    headerText: {
+      flexDirection: "column",
+      justifyContent: "center",
     },
     businessName: {
-      fontSize: 18,
+      fontSize: 15,
       fontFamily: "Helvetica-Bold",
       color: "#111827",
-      marginBottom: 2,
+      marginBottom: 1,
     },
     businessSub: {
-      fontSize: 9,
+      fontSize: 8,
       color: "#6b7280",
     },
     receiptCode: {
-      fontSize: 11,
+      fontSize: 13,
       fontFamily: "Helvetica-Bold",
       color: "#111827",
-      marginTop: 12,
+      textAlign: "right",
+    },
+    receiptCodeLabel: {
+      fontSize: 8,
+      color: "#6b7280",
+      textAlign: "right",
+      marginBottom: 2,
     },
     section: {
       marginBottom: 16,
@@ -141,14 +181,33 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       createElement(
         View,
         { style: styles.header },
-        createElement(Text, { style: styles.businessName }, settings.businessName || "MS Collection"),
-        settings.businessPhone
-          ? createElement(Text, { style: styles.businessSub }, settings.businessPhone)
-          : null,
-        settings.businessAddress
-          ? createElement(Text, { style: styles.businessSub }, settings.businessAddress)
-          : null,
-        createElement(Text, { style: styles.receiptCode }, `NOTA #${receipt.receiptCode}`)
+        // Left: logo + business name
+        createElement(
+          View,
+          { style: styles.headerLeft },
+          logoDataUrl
+            ? createElement(Image, { style: styles.logo, src: logoDataUrl })
+            : null,
+          createElement(
+            View,
+            { style: styles.headerText },
+            createElement(Text, { style: styles.businessName }, settings.businessName || "MS Collection"),
+            createElement(Text, { style: styles.businessSub }, "School Uniform & Sports Apparel"),
+            settings.businessPhone
+              ? createElement(Text, { style: styles.businessSub }, settings.businessPhone)
+              : null,
+            settings.businessAddress
+              ? createElement(Text, { style: styles.businessSub }, settings.businessAddress)
+              : null
+          )
+        ),
+        // Right: receipt code
+        createElement(
+          View,
+          {},
+          createElement(Text, { style: styles.receiptCodeLabel }, "KODE NOTA"),
+          createElement(Text, { style: styles.receiptCode }, receipt.receiptCode)
+        )
       ),
 
       // Client Info

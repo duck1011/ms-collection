@@ -1,0 +1,202 @@
+IMPORTANT — TARGETED FIX ONLY
+
+Do NOT redesign the app.
+
+Do NOT change layouts, colors, typography, spacing, navigation, dashboard structure, or existing business logic.
+
+Do NOT modify unrelated files.
+
+Only fix the issues listed below.
+
+Analyze existing code first and modify only affected files.
+
+------------------------------------------------
+
+ISSUE 1: ORDER ENTRY BECOMES OVERWHELMING FOR LARGE ORDERS
+
+Current issue:
+
+The current order flow forces the owner to create multiple item sections/windows/cards for every size.
+
+Example:
+
+Seragam Sekolah
+Size S = 10
+Size M = 30
+Size L = 40
+Size XL = 20
+
+Current implementation requires:
+
+Item 1
+Item 2
+Item 3
+Item 4
+...
+
+This becomes impractical for large school orders.
+
+FIX:
+
+Replace the current repeated-item approach with a dedicated Size Breakdown section.
+
+Keep ONE product item card only.
+
+Structure:
+
+Produk:
+[Dropdown]
+
+Ukuran & Jumlah:
+
+XS [input]
+S  [input]
+M  [input]
+L  [input]
+XL [input]
+XXL [input]
+
+Behavior:
+
+Owner inputs quantity for each size directly.
+
+Example:
+
+XS = 5
+S = 10
+M = 30
+L = 50
+XL = 20
+XXL = 0
+
+System automatically calculates:
+
+Total Quantity =
+sum(all sizes)
+
+Display:
+
+Total Jumlah:
+115 pcs
+
+Calculation:
+
+Total Harga =
+Unit Price × Total Quantity
+
+Requirements:
+
+✓ Quantity updates in real time
+✓ Subtotal updates in real time
+✓ Total updates in real time
+✓ Empty fields treated as 0
+✓ No mathematical errors
+✓ Use raw integers internally
+✓ Prevent negative values
+✓ Prevent NaN values
+
+Remove:
+
+"Tambah Item" button if no longer needed.
+
+Reason:
+
+Large school orders are bulk-based rather than item-per-size based.
+
+------------------------------------------------
+
+ISSUE 2: RECEIPT PDF DOES NOT INCLUDE BUSINESS LOGO
+
+Current issue:
+
+Generated receipt/PDF is missing the MS Collection logo.
+
+FIX:
+
+Add business logo to receipt and PDF.
+
+Placement:
+
+Top-left:
+
+[MS Collection Logo]
+
+Next to logo:
+
+MS Collection
+School Uniform & Sports Apparel
+
+Requirements:
+
+✓ Use transparent logo asset
+✓ Preserve aspect ratio
+✓ Do not stretch
+✓ High-quality rendering
+✓ Works in PDF export
+✓ Works in preview
+✓ Responsive
+
+Do NOT modify other receipt sections.
+
+------------------------------------------------
+
+ISSUE 3: RECEIPT ID IS TOO LONG
+
+Current:
+
+NOTA #MS200526-001
+
+Current issue:
+
+Too long and visually noisy.
+
+FIX:
+
+Keep ID professional but shorter and easier to read.
+
+Remove:
+
+"NOTA #"
+
+Replace with:
+
+MS526001
+
+Format:
+
+MS + DMM + sequence
+
+Examples:
+
+MS526001
+MS526002
+MS526003
+
+Rules:
+
+✓ Automatically generated
+✓ Unique
+✓ Short
+✓ Easy to read
+✓ Easy to search manually
+
+------------------------------------------------
+
+FINAL VALIDATION
+
+Before completing:
+
+Verify:
+
+✓ Size quantities calculate correctly
+✓ Total quantity correct
+✓ Total price correct
+✓ Receipt logo appears
+✓ PDF logo appears
+✓ Receipt code shortened correctly
+✓ Existing functionality unchanged
+✓ Existing dashboard unchanged
+✓ Existing styles unchanged
+✓ Existing routes unchanged
+
+Only modify files required for these fixes.

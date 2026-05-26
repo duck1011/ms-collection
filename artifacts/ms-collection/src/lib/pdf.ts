@@ -3,10 +3,12 @@ import { createElement } from "react";
 import { Receipt, Settings } from "@/lib/db";
 import { formatRupiah, formatDate } from "@/lib/utils";
 import logoAssetUrl from "../assets/logo.png";
+import bcaLogoUrl from "../assets/logo-bca.png";
+import mandiriLogoUrl from "../assets/logo-mandiri.png";
 
-async function getLogoDataUrl(): Promise<string> {
+async function assetToDataUrl(url: string): Promise<string> {
   try {
-    const res = await fetch(logoAssetUrl);
+    const res = await fetch(url);
     const blob = await res.blob();
     return await new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -21,7 +23,11 @@ async function getLogoDataUrl(): Promise<string> {
 
 export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
   const { Document, Page, View, Text, Image, StyleSheet } = await import("@react-pdf/renderer");
-  const logoDataUrl = await getLogoDataUrl();
+  const [logoDataUrl, bcaDataUrl, mandiriDataUrl] = await Promise.all([
+    assetToDataUrl(logoAssetUrl),
+    assetToDataUrl(bcaLogoUrl),
+    assetToDataUrl(mandiriLogoUrl),
+  ]);
 
   const styles = StyleSheet.create({
     page: {
@@ -189,12 +195,21 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       fontSize: 8.5,
       fontFamily: "Helvetica-Bold",
       color: "#000000",
-      marginBottom: 3,
+      marginBottom: 6,
     },
     bankRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 6,
+      gap: 6,
+    },
+    bankLogo: {
+      height: 16,
+      objectFit: "contain",
+    },
+    bankAccountName: {
       fontSize: 8.5,
       color: "#333333",
-      marginBottom: 2,
     },
 
     bottomRight: {
@@ -356,8 +371,22 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
             createElement(Text, { style: styles.deadlineValue }, formatDate(receipt.date))
           ),
           createElement(Text, { style: styles.bankTitle }, "No. Rekening :"),
-          createElement(Text, { style: styles.bankRow }, `BCA      a/n  ${bankBCA}`),
-          createElement(Text, { style: styles.bankRow }, `Mandiri  a/n  ${bankMandiri}`)
+          createElement(
+            View,
+            { style: styles.bankRow },
+            bcaDataUrl
+              ? createElement(Image, { style: styles.bankLogo, src: bcaDataUrl })
+              : createElement(Text, { style: styles.bankAccountName }, "BCA"),
+            createElement(Text, { style: styles.bankAccountName }, `a/n  ${bankBCA}`)
+          ),
+          createElement(
+            View,
+            { style: styles.bankRow },
+            mandiriDataUrl
+              ? createElement(Image, { style: styles.bankLogo, src: mandiriDataUrl })
+              : createElement(Text, { style: styles.bankAccountName }, "Mandiri"),
+            createElement(Text, { style: styles.bankAccountName }, `a/n  ${bankMandiri}`)
+          )
         ),
 
         // Right: Total / DP / Sisa

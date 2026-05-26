@@ -279,16 +279,10 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
           )
         ),
 
-        // RIGHT: invoice no + date
+        // RIGHT: date only
         createElement(
           View,
           { style: styles.headerRight },
-          createElement(
-            View,
-            { style: styles.metaRow },
-            createElement(Text, { style: styles.metaLabel }, "No. Nota:"),
-            createElement(Text, { style: styles.metaValue }, receipt.receiptCode)
-          ),
           createElement(
             View,
             { style: styles.metaRow },

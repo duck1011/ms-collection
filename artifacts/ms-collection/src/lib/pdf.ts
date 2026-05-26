@@ -143,23 +143,28 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
     },
     tableHeader: {
       flexDirection: "row",
-      backgroundColor: "#f4f4f4",
-      borderTop: "1px solid #000000",
-      borderBottom: "1px solid #000000",
-      paddingVertical: 5,
-      paddingHorizontal: 4,
+      backgroundColor: "#1a1a1a",
+      paddingVertical: 7,
+      paddingHorizontal: 8,
+      borderRadius: 2,
     },
     tableRow: {
       flexDirection: "row",
-      borderBottom: "1px dashed #cccccc",
-      paddingVertical: 6,
-      paddingHorizontal: 4,
+      borderBottom: "1px solid #eeeeee",
+      paddingVertical: 7,
+      paddingHorizontal: 8,
     },
-    colQty: { width: 30, textAlign: "center" },
+    tableRowEmpty: {
+      flexDirection: "row",
+      borderBottom: "1px solid #f4f4f4",
+      paddingVertical: 7,
+      paddingHorizontal: 8,
+    },
+    colQty: { width: 32, textAlign: "center" },
     colBarang: { flex: 1, textAlign: "left", paddingLeft: 4 },
-    colHarga: { width: 80, textAlign: "right", paddingRight: 4 },
-    colJumlah: { width: 80, textAlign: "right" },
-    colHeaderText: { fontFamily: "Helvetica-Bold", fontSize: 9, color: "#000000" },
+    colHarga: { width: 88, textAlign: "right", paddingRight: 4 },
+    colJumlah: { width: 88, textAlign: "right" },
+    colHeaderText: { fontFamily: "Helvetica-Bold", fontSize: 8.5, color: "#ffffff", letterSpacing: 0.5 },
     colCellText: { fontSize: 9, color: "#333333" },
 
     // ── Bottom section ───────────────────────────────────────
@@ -195,17 +200,30 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       fontSize: 8.5,
       fontFamily: "Helvetica-Bold",
       color: "#000000",
-      marginBottom: 6,
+      marginBottom: 8,
     },
     bankRow: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 6,
-      gap: 6,
+      marginBottom: 8,
+    },
+    bankLogoBox: {
+      width: 52,
+      height: 15,
+      justifyContent: "center",
+      marginRight: 8,
     },
     bankLogo: {
-      height: 16,
+      width: 52,
+      height: 15,
       objectFit: "contain",
+      objectPositionX: 0,
+    },
+    bankAccountLabel: {
+      fontSize: 8.5,
+      color: "#888888",
+      width: 22,
+      marginRight: 4,
     },
     bankAccountName: {
       fontSize: 8.5,
@@ -346,7 +364,7 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
         ...Array.from({ length: Math.max(0, 10 - receipt.items.length) }).map((_, i) =>
           createElement(
             View,
-            { key: `empty-${i}`, style: styles.tableRow },
+            { key: `empty-${i}`, style: styles.tableRowEmpty },
             createElement(Text, { style: [styles.colQty, styles.colCellText] }, " "),
             createElement(Text, { style: [styles.colBarang, styles.colCellText] }, " "),
             createElement(Text, { style: [styles.colHarga, styles.colCellText] }, " "),
@@ -374,18 +392,28 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
           createElement(
             View,
             { style: styles.bankRow },
-            bcaDataUrl
-              ? createElement(Image, { style: styles.bankLogo, src: bcaDataUrl })
-              : createElement(Text, { style: styles.bankAccountName }, "BCA"),
-            createElement(Text, { style: styles.bankAccountName }, `a/n  ${bankBCA}`)
+            createElement(
+              View,
+              { style: styles.bankLogoBox },
+              bcaDataUrl
+                ? createElement(Image, { style: styles.bankLogo, src: bcaDataUrl })
+                : createElement(Text, { style: styles.bankAccountName }, "BCA")
+            ),
+            createElement(Text, { style: styles.bankAccountLabel }, "a/n"),
+            createElement(Text, { style: styles.bankAccountName }, bankBCA)
           ),
           createElement(
             View,
             { style: styles.bankRow },
-            mandiriDataUrl
-              ? createElement(Image, { style: styles.bankLogo, src: mandiriDataUrl })
-              : createElement(Text, { style: styles.bankAccountName }, "Mandiri"),
-            createElement(Text, { style: styles.bankAccountName }, `a/n  ${bankMandiri}`)
+            createElement(
+              View,
+              { style: styles.bankLogoBox },
+              mandiriDataUrl
+                ? createElement(Image, { style: styles.bankLogo, src: mandiriDataUrl })
+                : createElement(Text, { style: styles.bankAccountName }, "Mandiri")
+            ),
+            createElement(Text, { style: styles.bankAccountLabel }, "a/n"),
+            createElement(Text, { style: styles.bankAccountName }, bankMandiri)
           )
         ),
 

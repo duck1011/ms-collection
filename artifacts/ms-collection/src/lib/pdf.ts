@@ -29,80 +29,109 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       fontFamily: "Helvetica",
       backgroundColor: "#ffffff",
       fontSize: 10,
-      color: "#000000",
+      color: "#333333",
     },
 
-    // ── Header ─────────────────────────────────────────────
+    // ── Header: two-column borderless layout ─────────────────
     header: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "flex-start",
       marginBottom: 10,
     },
+
+    // LEFT column — brand identity
     headerLeft: {
       flexDirection: "row",
       alignItems: "flex-start",
-      gap: 8,
+      flex: 1,
     },
     logo: {
       width: 52,
       height: 52,
       objectFit: "contain",
+      marginRight: 12,
     },
-    headerText: {
+    brandBlock: {
       flexDirection: "column",
-      justifyContent: "center",
+      justifyContent: "flex-start",
     },
     businessName: {
-      fontSize: 14,
+      fontSize: 15,
       fontFamily: "Helvetica-Bold",
       color: "#000000",
-      marginBottom: 2,
+      letterSpacing: 0.5,
+      marginBottom: 3,
     },
-    businessDetail: {
+    addressLine: {
       fontSize: 8.5,
-      color: "#333333",
+      color: "#666666",
+      lineHeight: 1.5,
       marginBottom: 1,
     },
+    phoneLine: {
+      fontSize: 8.5,
+      color: "#666666",
+      marginTop: 2,
+    },
 
-    // Header right — client meta (Tgl, Kepada Yth, Tlp)
+    // RIGHT column — invoice meta
     headerRight: {
       flexDirection: "column",
-      gap: 6,
-      minWidth: 160,
+      alignItems: "flex-end",
+      justifyContent: "flex-start",
+      gap: 4,
     },
     metaRow: {
       flexDirection: "row",
       alignItems: "center",
-      borderBottom: "1px solid #000000",
-      paddingBottom: 2,
       gap: 4,
     },
     metaLabel: {
-      fontSize: 8.5,
-      width: 56,
-      color: "#000000",
+      fontSize: 9,
+      fontFamily: "Helvetica-Bold",
+      color: "#333333",
     },
     metaValue: {
-      fontSize: 8.5,
-      flex: 1,
-      color: "#000000",
+      fontSize: 9,
+      color: "#333333",
     },
 
-    // ── Document title ──────────────────────────────────────
+    // ── Separator line ───────────────────────────────────────
+    separator: {
+      borderBottom: "1px solid #e0e0e0",
+      marginBottom: 8,
+    },
+
+    // ── Recipient block ──────────────────────────────────────
+    recipientBlock: {
+      marginBottom: 12,
+    },
+    recipientName: {
+      fontSize: 9.5,
+      fontFamily: "Helvetica-Bold",
+      color: "#333333",
+      marginBottom: 2,
+    },
+    recipientPhone: {
+      fontSize: 8.5,
+      color: "#666666",
+    },
+
+    // ── Document title ───────────────────────────────────────
     docTitle: {
       textAlign: "center",
       fontSize: 13,
       fontFamily: "Helvetica-Bold",
       color: "#000000",
-      marginVertical: 10,
+      marginBottom: 10,
       borderTop: "1px solid #000000",
       borderBottom: "1px solid #000000",
       paddingVertical: 4,
       letterSpacing: 1,
     },
 
-    // ── Table ───────────────────────────────────────────────
+    // ── Table ────────────────────────────────────────────────
     table: {
       marginBottom: 8,
     },
@@ -120,36 +149,14 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       paddingVertical: 6,
       paddingHorizontal: 4,
     },
+    colQty: { width: 30, textAlign: "center" },
+    colBarang: { flex: 1, textAlign: "left", paddingLeft: 4 },
+    colHarga: { width: 80, textAlign: "right", paddingRight: 4 },
+    colJumlah: { width: 80, textAlign: "right" },
+    colHeaderText: { fontFamily: "Helvetica-Bold", fontSize: 9, color: "#000000" },
+    colCellText: { fontSize: 9, color: "#333333" },
 
-    colQty: {
-      width: 30,
-      textAlign: "center",
-    },
-    colBarang: {
-      flex: 1,
-      textAlign: "left",
-      paddingLeft: 4,
-    },
-    colHarga: {
-      width: 80,
-      textAlign: "right",
-      paddingRight: 4,
-    },
-    colJumlah: {
-      width: 80,
-      textAlign: "right",
-    },
-    colHeaderText: {
-      fontFamily: "Helvetica-Bold",
-      fontSize: 9,
-      color: "#000000",
-    },
-    colCellText: {
-      fontSize: 9,
-      color: "#000000",
-    },
-
-    // ── Bottom section ──────────────────────────────────────
+    // ── Bottom section ───────────────────────────────────────
     bottomSection: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -175,7 +182,7 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
     },
     deadlineValue: {
       fontSize: 9,
-      color: "#000000",
+      color: "#333333",
       marginLeft: 4,
     },
     bankTitle: {
@@ -186,14 +193,13 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
     },
     bankRow: {
       fontSize: 8.5,
-      color: "#000000",
+      color: "#333333",
       marginBottom: 2,
     },
 
     bottomRight: {
       width: 180,
       flexDirection: "column",
-      gap: 0,
     },
     summaryRow: {
       flexDirection: "row",
@@ -203,38 +209,21 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       paddingVertical: 5,
       paddingHorizontal: 4,
     },
-    summaryLabel: {
-      fontSize: 9,
-      fontFamily: "Helvetica-Bold",
-      color: "#000000",
-    },
-    summaryValue: {
-      fontSize: 9,
-      color: "#000000",
-    },
+    summaryLabel: { fontSize: 9, fontFamily: "Helvetica-Bold", color: "#000000" },
+    summaryValue: { fontSize: 9, color: "#333333" },
 
-    // ── Receipt code ─────────────────────────────────────────
-    receiptCodeRow: {
-      flexDirection: "row",
-      justifyContent: "flex-end",
-      marginBottom: 4,
-    },
-    receiptCode: {
-      fontSize: 8,
-      color: "#555555",
-    },
-
-    // ── Footer ──────────────────────────────────────────────
+    // ── Footer ───────────────────────────────────────────────
     footer: {
       marginTop: 16,
-      borderTop: "1px solid #000000",
+      borderTop: "1px solid #e0e0e0",
       paddingTop: 6,
       fontSize: 8,
-      color: "#333333",
+      color: "#666666",
     },
     footerTitle: {
       fontFamily: "Helvetica-Bold",
       fontSize: 8.5,
+      color: "#333333",
       marginBottom: 2,
     },
   });
@@ -243,6 +232,17 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
   const bankBCA = settings.bankBCA || "—";
   const bankMandiri = settings.bankMandiri || "—";
 
+  // Parse address into up to 3 lines
+  const rawAddress = settings.businessAddress || "";
+  const [addrLine1 = "", addrLine2 = "", addrLine3 = ""] = rawAddress
+    .split(/,\s*/)
+    .reduce<string[]>((acc, part, i) => {
+      if (i === 0) acc.push(part);
+      else if (i === 1) acc.push(part);
+      else acc[acc.length - 1] = (acc[acc.length - 1] || "") + ", " + part;
+      return acc;
+    }, []);
+
   const doc = createElement(
     Document,
     {},
@@ -250,19 +250,12 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       Page,
       { size: "A4", style: styles.page },
 
-      // Receipt code top-right
-      createElement(
-        View,
-        { style: styles.receiptCodeRow },
-        createElement(Text, { style: styles.receiptCode }, `No. Nota: ${receipt.receiptCode}`)
-      ),
-
-      // ── Header ─────────────────────────────
+      // ── Header ─────────────────────────────────────────────
       createElement(
         View,
         { style: styles.header },
 
-        // Left: logo + company info
+        // LEFT: logo + brand
         createElement(
           View,
           { style: styles.headerLeft },
@@ -271,47 +264,58 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
             : null,
           createElement(
             View,
-            { style: styles.headerText },
-            createElement(Text, { style: styles.businessName }, settings.businessName || "CV. Mandiri SEJATI"),
-            createElement(Text, { style: styles.businessDetail }, settings.businessAddress || ""),
-            createElement(Text, { style: styles.businessDetail }, settings.businessPhone || "")
+            { style: styles.brandBlock },
+            createElement(Text, { style: styles.businessName }, (settings.businessName || "CV. Mandiri SEJATI").toUpperCase()),
+            addrLine1
+              ? createElement(Text, { style: styles.addressLine }, addrLine1)
+              : null,
+            addrLine2
+              ? createElement(Text, { style: styles.addressLine }, addrLine2)
+              : null,
+            addrLine3
+              ? createElement(Text, { style: styles.addressLine }, addrLine3)
+              : null,
+            createElement(Text, { style: styles.phoneLine }, settings.businessPhone || "")
           )
         ),
 
-        // Right: Tgl / Kepada Yth / Tlp
+        // RIGHT: invoice no + date
         createElement(
           View,
           { style: styles.headerRight },
           createElement(
             View,
             { style: styles.metaRow },
-            createElement(Text, { style: styles.metaLabel }, "Tgl         :"),
+            createElement(Text, { style: styles.metaLabel }, "No. Nota:"),
+            createElement(Text, { style: styles.metaValue }, receipt.receiptCode)
+          ),
+          createElement(
+            View,
+            { style: styles.metaRow },
+            createElement(Text, { style: styles.metaLabel }, "Tgl"),
             createElement(Text, { style: styles.metaValue }, formatDate(receipt.date))
-          ),
-          createElement(
-            View,
-            { style: styles.metaRow },
-            createElement(Text, { style: styles.metaLabel }, "Kepada Yth :"),
-            createElement(Text, { style: styles.metaValue }, receipt.clientName)
-          ),
-          createElement(
-            View,
-            { style: styles.metaRow },
-            createElement(Text, { style: styles.metaLabel }, "Tlp         :"),
-            createElement(Text, { style: styles.metaValue }, receipt.clientPhone)
           )
         )
       ),
 
-      // ── Document title ──────────────────────
+      // ── Separator ──────────────────────────────────────────
+      createElement(View, { style: styles.separator }),
+
+      // ── Recipient ──────────────────────────────────────────
+      createElement(
+        View,
+        { style: styles.recipientBlock },
+        createElement(Text, { style: styles.recipientName }, `Kepada Yth: ${receipt.clientName}`),
+        createElement(Text, { style: styles.recipientPhone }, `Tlp: ${receipt.clientPhone}`)
+      ),
+
+      // ── Document title ─────────────────────────────────────
       createElement(Text, { style: styles.docTitle }, "NOTA / INVOICE"),
 
-      // ── Table ───────────────────────────────
+      // ── Table ──────────────────────────────────────────────
       createElement(
         View,
         { style: styles.table },
-
-        // Header row
         createElement(
           View,
           { style: styles.tableHeader },
@@ -320,8 +324,6 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
           createElement(Text, { style: [styles.colHarga, styles.colHeaderText] }, "Harga"),
           createElement(Text, { style: [styles.colJumlah, styles.colHeaderText] }, "Jumlah")
         ),
-
-        // Data rows
         ...receipt.items.map((item, i) =>
           createElement(
             View,
@@ -332,8 +334,6 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
             createElement(Text, { style: [styles.colJumlah, styles.colCellText] }, formatRupiah(item.subtotal))
           )
         ),
-
-        // Empty filler rows (pad to at least 10 rows)
         ...Array.from({ length: Math.max(0, 10 - receipt.items.length) }).map((_, i) =>
           createElement(
             View,
@@ -346,12 +346,12 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
         )
       ),
 
-      // ── Bottom: bank info (left) + totals (right) ──
+      // ── Bottom: bank info + totals ──────────────────────────
       createElement(
         View,
         { style: styles.bottomSection },
 
-        // Left: Deadline + No. Rekening
+        // Left: Deadline + bank accounts
         createElement(
           View,
           { style: styles.bottomLeft },
@@ -359,10 +359,10 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
             View,
             { style: styles.deadlineRow },
             createElement(Text, { style: styles.deadlineLabel }, "Deadline :"),
-            createElement(Text, { style: styles.deadlineValue }, receipt.date ? formatDate(receipt.date) : "")
+            createElement(Text, { style: styles.deadlineValue }, formatDate(receipt.date))
           ),
           createElement(Text, { style: styles.bankTitle }, "No. Rekening :"),
-          createElement(Text, { style: styles.bankRow }, `BCA   a/n  ${bankBCA}`),
+          createElement(Text, { style: styles.bankRow }, `BCA      a/n  ${bankBCA}`),
           createElement(Text, { style: styles.bankRow }, `Mandiri  a/n  ${bankMandiri}`)
         ),
 
@@ -391,7 +391,7 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
         )
       ),
 
-      // ── Footer ──────────────────────────────
+      // ── Footer ─────────────────────────────────────────────
       createElement(
         View,
         { style: styles.footer },

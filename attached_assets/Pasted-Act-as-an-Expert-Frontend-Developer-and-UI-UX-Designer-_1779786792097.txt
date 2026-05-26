@@ -1,0 +1,35 @@
+Act as an Expert Frontend Developer and UI/UX Designer specializing in print-ready document design. I need you to rewrite the HTML and CSS for the header section of my Invoice/Nota. 
+
+The current header has lines and feels cluttered. I need a "high-level," executive, borderless design that is extremely readable, perfectly aligned, and strictly matches the layout of my sketch.
+
+### 1. EXACT CONTENT & LAYOUT STRUCTURE
+Use CSS Flexbox to create a two-column layout for the main header:
+
+**LEFT COLUMN (Brand Identity - Aligned Left):**
+*   **Logo:** `<img src="/logo.png" alt="Logo" style="height: 65px; margin-right: 15px;">` floated or flexed to the left.
+*   **Company Name:** "CV. Mandiri SEJATI" (Large, Bold, Dark Gray/Black, Uppercase).
+*   **Address (Must be stacked on multiple lines, perfectly left-aligned with the company name):**
+    *   Jl. Mayjend Sungkono No.17, RT.06 RN.03
+    *   Buiring, Kedungkandang
+    *   MALANG
+*   **Phone:** 085 - 6494 - 15696
+
+**RIGHT COLUMN (Invoice Meta - Aligned Right):**
+*   **Invoice No:** No. Nota: MS050525 - 002 (Bold label, regular text)
+*   **Date:** Tgl 26 Mei 2026 (Bold label, regular text)
+
+**BELOW THE MAIN HEADER (Recipient Section):**
+*   Draw a single, elegant, thin solid line (`border-bottom: 1px solid #e0e0e0`) spanning the full width to separate the header from the recipient.
+*   **Recipient Details (Left-aligned below the line):**
+    *   Kepada Yth: Riz - ki Prata - ma (Bold)
+    *   Tlp: 085678901234 (Regular, slightly smaller)
+
+### 2. STYLING & READABILITY RULES (CRITICAL)
+*   **Remove All Lines/Borders:** Do NOT use any table borders, box borders, or underlines within the main header area. It must be a clean, open, white-space-driven design.
+*   **Typography:** Use a premium sans-serif font stack (`'Inter', 'Helvetica Neue', Arial, sans-serif`). 
+*   **Spacing:** Use adequate `line-height` (around 1.5) for the address and meta data so it breathes and is easy to read. Add a small `letter-spacing` (0.5px) to the company name to make it look corporate.
+*   **Colors:** Pure black (`#000000`) for the Company Name. Dark charcoal (`#333333`) for main text. Medium gray (`#666666`) for secondary text (like the address and phone).
+*   **Print Readiness:** Ensure the Flexbox layout holds perfectly when printing and no elements wrap awkwardly.
+
+### 3. OUTPUT REQUIREMENTS
+Provide ONLY the complete, copy-pasteable HTML code (with embedded CSS inside `<style>` tags) for this header and recipient section. I will integrate this into my full invoice. Ensure the code is clean, semantic, and immediately renders correctly in a browser.

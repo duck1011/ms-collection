@@ -40,6 +40,8 @@ export interface Settings {
   businessPhone: string;
   businessAddress: string;
   defaultNotes: string;
+  bankBCA: string;
+  bankMandiri: string;
 }
 
 interface MSDB extends DBSchema {

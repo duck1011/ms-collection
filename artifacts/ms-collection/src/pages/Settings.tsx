@@ -17,6 +17,8 @@ const schema = z.object({
   businessPhone: z.string().optional().default(""),
   businessAddress: z.string().optional().default(""),
   defaultNotes: z.string().optional().default(""),
+  bankBCA: z.string().optional().default(""),
+  bankMandiri: z.string().optional().default(""),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -32,6 +34,8 @@ export default function SettingsPage() {
       businessPhone: settings.businessPhone,
       businessAddress: settings.businessAddress,
       defaultNotes: settings.defaultNotes,
+      bankBCA: settings.bankBCA ?? "",
+      bankMandiri: settings.bankMandiri ?? "",
     },
   });
 
@@ -45,6 +49,8 @@ export default function SettingsPage() {
       businessPhone: settings.businessPhone,
       businessAddress: settings.businessAddress,
       defaultNotes: settings.defaultNotes,
+      bankBCA: settings.bankBCA ?? "",
+      bankMandiri: settings.bankMandiri ?? "",
     });
   }, [settings, form]);
 
@@ -54,6 +60,8 @@ export default function SettingsPage() {
       businessPhone: data.businessPhone ?? "",
       businessAddress: data.businessAddress ?? "",
       defaultNotes: data.defaultNotes ?? "",
+      bankBCA: data.bankBCA ?? "",
+      bankMandiri: data.bankMandiri ?? "",
     };
     await updateSettings(s);
     toast({ title: "Pengaturan disimpan" });
@@ -117,6 +125,26 @@ export default function SettingsPage() {
             placeholder="Catatan yang akan muncul di setiap nota..."
             rows={3}
           />
+        </div>
+
+        <div className="pt-2 border-t border-border space-y-4">
+          <h3 className="text-sm font-semibold">Nomor Rekening</h3>
+          <div className="space-y-1.5">
+            <Label>BCA — Atas Nama</Label>
+            <Input
+              {...form.register("bankBCA")}
+              data-testid="input-bank-bca"
+              placeholder="Nama pemilik rekening BCA"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Mandiri — Atas Nama</Label>
+            <Input
+              {...form.register("bankMandiri")}
+              data-testid="input-bank-mandiri"
+              placeholder="Nama pemilik rekening Mandiri"
+            />
+          </div>
         </div>
 
         <Button type="submit" data-testid="button-save-settings" className="w-full">

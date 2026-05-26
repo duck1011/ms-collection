@@ -23,35 +23,30 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
   const { Document, Page, View, Text, Image, StyleSheet } = await import("@react-pdf/renderer");
   const logoDataUrl = await getLogoDataUrl();
 
-  const STATUS_LABEL: Record<string, string> = {
-    PAID: "Lunas",
-    PARTIALLY_PAID: "Sebagian Dibayar",
-    UNPAID: "Belum Dibayar",
-  };
-
   const styles = StyleSheet.create({
     page: {
-      padding: 40,
+      padding: "15mm",
       fontFamily: "Helvetica",
       backgroundColor: "#ffffff",
       fontSize: 10,
+      color: "#000000",
     },
+
+    // ── Header ─────────────────────────────────────────────
     header: {
-      marginBottom: 20,
-      borderBottom: "1px solid #e5e7eb",
-      paddingBottom: 12,
       flexDirection: "row",
-      alignItems: "flex-start",
       justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: 10,
     },
     headerLeft: {
       flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
+      alignItems: "flex-start",
+      gap: 8,
     },
     logo: {
-      width: 36,
-      height: 36,
+      width: 52,
+      height: 52,
       objectFit: "contain",
     },
     headerText: {
@@ -59,129 +54,215 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       justifyContent: "center",
     },
     businessName: {
-      fontSize: 15,
+      fontSize: 14,
       fontFamily: "Helvetica-Bold",
-      color: "#111827",
-      marginBottom: 1,
-    },
-    businessSub: {
-      fontSize: 8,
-      color: "#6b7280",
-    },
-    receiptCode: {
-      fontSize: 13,
-      fontFamily: "Helvetica-Bold",
-      color: "#111827",
-      textAlign: "right",
-    },
-    receiptCodeLabel: {
-      fontSize: 8,
-      color: "#6b7280",
-      textAlign: "right",
+      color: "#000000",
       marginBottom: 2,
     },
-    section: {
-      marginBottom: 16,
+    businessDetail: {
+      fontSize: 8.5,
+      color: "#333333",
+      marginBottom: 1,
     },
-    sectionTitle: {
-      fontSize: 9,
-      fontFamily: "Helvetica-Bold",
-      color: "#6b7280",
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
-      marginBottom: 6,
+
+    // Header right — client meta (Tgl, Kepada Yth, Tlp)
+    headerRight: {
+      flexDirection: "column",
+      gap: 6,
+      minWidth: 160,
     },
-    row: {
+    metaRow: {
       flexDirection: "row",
-      marginBottom: 4,
+      alignItems: "center",
+      borderBottom: "1px solid #000000",
+      paddingBottom: 2,
+      gap: 4,
     },
-    label: {
-      width: 130,
-      color: "#6b7280",
+    metaLabel: {
+      fontSize: 8.5,
+      width: 56,
+      color: "#000000",
     },
-    value: {
+    metaValue: {
+      fontSize: 8.5,
       flex: 1,
-      color: "#111827",
+      color: "#000000",
+    },
+
+    // ── Document title ──────────────────────────────────────
+    docTitle: {
+      textAlign: "center",
+      fontSize: 13,
+      fontFamily: "Helvetica-Bold",
+      color: "#000000",
+      marginVertical: 10,
+      borderTop: "1px solid #000000",
+      borderBottom: "1px solid #000000",
+      paddingVertical: 4,
+      letterSpacing: 1,
+    },
+
+    // ── Table ───────────────────────────────────────────────
+    table: {
+      marginBottom: 8,
     },
     tableHeader: {
       flexDirection: "row",
-      backgroundColor: "#f9fafb",
-      padding: "6 8",
-      borderRadius: 4,
-      marginBottom: 4,
+      backgroundColor: "#f4f4f4",
+      borderTop: "1px solid #000000",
+      borderBottom: "1px solid #000000",
+      paddingVertical: 5,
+      paddingHorizontal: 4,
     },
     tableRow: {
       flexDirection: "row",
-      padding: "5 8",
-      borderBottom: "1px solid #f3f4f6",
+      borderBottom: "1px dashed #cccccc",
+      paddingVertical: 6,
+      paddingHorizontal: 4,
     },
-    colProduct: { flex: 3, color: "#111827" },
-    colSize: { flex: 1, textAlign: "center" },
-    colQty: { flex: 1, textAlign: "center" },
-    colPrice: { flex: 2, textAlign: "right" },
-    colLabel: { color: "#6b7280", fontFamily: "Helvetica-Bold", fontSize: 9 },
-    divider: {
-      borderBottom: "1px solid #e5e7eb",
-      marginVertical: 12,
+
+    colQty: {
+      width: 30,
+      textAlign: "center",
+    },
+    colBarang: {
+      flex: 1,
+      textAlign: "left",
+      paddingLeft: 4,
+    },
+    colHarga: {
+      width: 80,
+      textAlign: "right",
+      paddingRight: 4,
+    },
+    colJumlah: {
+      width: 80,
+      textAlign: "right",
+    },
+    colHeaderText: {
+      fontFamily: "Helvetica-Bold",
+      fontSize: 9,
+      color: "#000000",
+    },
+    colCellText: {
+      fontSize: 9,
+      color: "#000000",
+    },
+
+    // ── Bottom section ──────────────────────────────────────
+    bottomSection: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: 10,
+      gap: 12,
+    },
+    bottomLeft: {
+      flex: 1,
+      flexDirection: "column",
+      gap: 4,
+    },
+    deadlineRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderBottom: "1px solid #000000",
+      paddingBottom: 2,
+      marginBottom: 8,
+    },
+    deadlineLabel: {
+      fontSize: 9,
+      fontFamily: "Helvetica-Bold",
+      color: "#000000",
+    },
+    deadlineValue: {
+      fontSize: 9,
+      color: "#000000",
+      marginLeft: 4,
+    },
+    bankTitle: {
+      fontSize: 8.5,
+      fontFamily: "Helvetica-Bold",
+      color: "#000000",
+      marginBottom: 3,
+    },
+    bankRow: {
+      fontSize: 8.5,
+      color: "#000000",
+      marginBottom: 2,
+    },
+
+    bottomRight: {
+      width: 180,
+      flexDirection: "column",
+      gap: 0,
     },
     summaryRow: {
       flexDirection: "row",
       justifyContent: "space-between",
-      marginBottom: 5,
+      alignItems: "center",
+      borderBottom: "1px solid #000000",
+      paddingVertical: 5,
+      paddingHorizontal: 4,
     },
-    summaryLabel: { color: "#6b7280" },
-    summaryValue: { fontFamily: "Helvetica-Bold", color: "#111827" },
-    totalRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginTop: 4,
-    },
-    totalLabel: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#111827" },
-    totalValue: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#111827" },
-    statusBadge: {
-      alignSelf: "flex-start",
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 4,
-      marginTop: 8,
-    },
-    statusText: {
+    summaryLabel: {
       fontSize: 9,
       fontFamily: "Helvetica-Bold",
+      color: "#000000",
     },
-    footer: {
-      marginTop: 24,
-      borderTop: "1px solid #e5e7eb",
-      paddingTop: 10,
-      color: "#9ca3af",
+    summaryValue: {
+      fontSize: 9,
+      color: "#000000",
+    },
+
+    // ── Receipt code ─────────────────────────────────────────
+    receiptCodeRow: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      marginBottom: 4,
+    },
+    receiptCode: {
       fontSize: 8,
-      textAlign: "center",
+      color: "#555555",
     },
-    paidLabel: { color: "#059669" },
-    remainLabel: { color: "#dc2626" },
+
+    // ── Footer ──────────────────────────────────────────────
+    footer: {
+      marginTop: 16,
+      borderTop: "1px solid #000000",
+      paddingTop: 6,
+      fontSize: 8,
+      color: "#333333",
+    },
+    footerTitle: {
+      fontFamily: "Helvetica-Bold",
+      fontSize: 8.5,
+      marginBottom: 2,
+    },
   });
 
-  const statusColor: Record<string, { bg: string; text: string }> = {
-    PAID: { bg: "#dcfce7", text: "#166534" },
-    PARTIALLY_PAID: { bg: "#fef3c7", text: "#92400e" },
-    UNPAID: { bg: "#fee2e2", text: "#991b1b" },
-  };
-
   const remaining = Math.max(0, receipt.totalPrice - receipt.paidAmount);
-  const sc = statusColor[receipt.paymentStatus] ?? statusColor["UNPAID"];
+  const bankBCA = settings.bankBCA || "—";
+  const bankMandiri = settings.bankMandiri || "—";
 
   const doc = createElement(
     Document,
     {},
     createElement(
       Page,
-      { size: "A5", style: styles.page },
+      { size: "A4", style: styles.page },
 
-      // Header
+      // Receipt code top-right
+      createElement(
+        View,
+        { style: styles.receiptCodeRow },
+        createElement(Text, { style: styles.receiptCode }, `No. Nota: ${receipt.receiptCode}`)
+      ),
+
+      // ── Header ─────────────────────────────
       createElement(
         View,
         { style: styles.header },
-        // Left: logo + business name
+
+        // Left: logo + company info
         createElement(
           View,
           { style: styles.headerLeft },
@@ -191,130 +272,135 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
           createElement(
             View,
             { style: styles.headerText },
-            createElement(Text, { style: styles.businessName }, settings.businessName || "MS Collection"),
-            createElement(Text, { style: styles.businessSub }, "School Uniform & Sports Apparel"),
-            settings.businessPhone
-              ? createElement(Text, { style: styles.businessSub }, settings.businessPhone)
-              : null,
-            settings.businessAddress
-              ? createElement(Text, { style: styles.businessSub }, settings.businessAddress)
-              : null
+            createElement(Text, { style: styles.businessName }, settings.businessName || "CV. Mandiri SEJATI"),
+            createElement(Text, { style: styles.businessDetail }, settings.businessAddress || ""),
+            createElement(Text, { style: styles.businessDetail }, settings.businessPhone || "")
           )
         ),
-        // Right: receipt code
+
+        // Right: Tgl / Kepada Yth / Tlp
         createElement(
           View,
-          {},
-          createElement(Text, { style: styles.receiptCodeLabel }, "KODE NOTA"),
-          createElement(Text, { style: styles.receiptCode }, receipt.receiptCode)
+          { style: styles.headerRight },
+          createElement(
+            View,
+            { style: styles.metaRow },
+            createElement(Text, { style: styles.metaLabel }, "Tgl         :"),
+            createElement(Text, { style: styles.metaValue }, formatDate(receipt.date))
+          ),
+          createElement(
+            View,
+            { style: styles.metaRow },
+            createElement(Text, { style: styles.metaLabel }, "Kepada Yth :"),
+            createElement(Text, { style: styles.metaValue }, receipt.clientName)
+          ),
+          createElement(
+            View,
+            { style: styles.metaRow },
+            createElement(Text, { style: styles.metaLabel }, "Tlp         :"),
+            createElement(Text, { style: styles.metaValue }, receipt.clientPhone)
+          )
         )
       ),
 
-      // Client Info
-      createElement(
-        View,
-        { style: styles.section },
-        createElement(Text, { style: styles.sectionTitle }, "Informasi Klien"),
-        createElement(
-          View,
-          { style: styles.row },
-          createElement(Text, { style: styles.label }, "Nama"),
-          createElement(Text, { style: styles.value }, receipt.clientName)
-        ),
-        createElement(
-          View,
-          { style: styles.row },
-          createElement(Text, { style: styles.label }, "Telepon"),
-          createElement(Text, { style: styles.value }, receipt.clientPhone)
-        ),
-        createElement(
-          View,
-          { style: styles.row },
-          createElement(Text, { style: styles.label }, "Sekolah / Organisasi"),
-          createElement(Text, { style: styles.value }, receipt.schoolOrOrganization)
-        ),
-        createElement(
-          View,
-          { style: styles.row },
-          createElement(Text, { style: styles.label }, "Tanggal"),
-          createElement(Text, { style: styles.value }, formatDate(receipt.date))
-        )
-      ),
+      // ── Document title ──────────────────────
+      createElement(Text, { style: styles.docTitle }, "NOTA / INVOICE"),
 
-      // Items Table
+      // ── Table ───────────────────────────────
       createElement(
         View,
-        { style: styles.section },
-        createElement(Text, { style: styles.sectionTitle }, "Detail Pesanan"),
+        { style: styles.table },
+
+        // Header row
         createElement(
           View,
           { style: styles.tableHeader },
-          createElement(Text, { style: [styles.colProduct, styles.colLabel] }, "Produk"),
-          createElement(Text, { style: [styles.colSize, styles.colLabel] }, "Ukuran"),
-          createElement(Text, { style: [styles.colQty, styles.colLabel] }, "Qty"),
-          createElement(Text, { style: [styles.colPrice, styles.colLabel] }, "Subtotal")
+          createElement(Text, { style: [styles.colQty, styles.colHeaderText] }, "Qty"),
+          createElement(Text, { style: [styles.colBarang, styles.colHeaderText] }, "Barang"),
+          createElement(Text, { style: [styles.colHarga, styles.colHeaderText] }, "Harga"),
+          createElement(Text, { style: [styles.colJumlah, styles.colHeaderText] }, "Jumlah")
         ),
+
+        // Data rows
         ...receipt.items.map((item, i) =>
           createElement(
             View,
             { key: i, style: styles.tableRow },
-            createElement(Text, { style: styles.colProduct }, item.productType),
-            createElement(Text, { style: styles.colSize }, item.size),
-            createElement(Text, { style: styles.colQty }, String(item.quantity)),
-            createElement(Text, { style: styles.colPrice }, formatRupiah(item.subtotal))
+            createElement(Text, { style: [styles.colQty, styles.colCellText] }, String(item.quantity)),
+            createElement(Text, { style: [styles.colBarang, styles.colCellText] }, `${item.productType} — ${item.size}`),
+            createElement(Text, { style: [styles.colHarga, styles.colCellText] }, formatRupiah(item.unitPrice)),
+            createElement(Text, { style: [styles.colJumlah, styles.colCellText] }, formatRupiah(item.subtotal))
+          )
+        ),
+
+        // Empty filler rows (pad to at least 10 rows)
+        ...Array.from({ length: Math.max(0, 10 - receipt.items.length) }).map((_, i) =>
+          createElement(
+            View,
+            { key: `empty-${i}`, style: styles.tableRow },
+            createElement(Text, { style: [styles.colQty, styles.colCellText] }, " "),
+            createElement(Text, { style: [styles.colBarang, styles.colCellText] }, " "),
+            createElement(Text, { style: [styles.colHarga, styles.colCellText] }, " "),
+            createElement(Text, { style: [styles.colJumlah, styles.colCellText] }, " ")
           )
         )
       ),
 
-      // Summary
-      createElement(View, { style: styles.divider }),
+      // ── Bottom: bank info (left) + totals (right) ──
       createElement(
         View,
-        { style: styles.section },
+        { style: styles.bottomSection },
+
+        // Left: Deadline + No. Rekening
         createElement(
           View,
-          { style: styles.summaryRow },
-          createElement(Text, { style: styles.summaryLabel }, "Total"),
-          createElement(Text, { style: styles.summaryValue }, formatRupiah(receipt.totalPrice))
-        ),
-        createElement(
-          View,
-          { style: styles.summaryRow },
-          createElement(Text, { style: styles.summaryLabel }, "Dibayar"),
-          createElement(Text, { style: [styles.summaryValue, styles.paidLabel] }, formatRupiah(receipt.paidAmount))
-        ),
-        createElement(
-          View,
-          { style: styles.summaryRow },
-          createElement(Text, { style: styles.summaryLabel }, "Sisa"),
-          createElement(Text, { style: [styles.summaryValue, styles.remainLabel] }, formatRupiah(remaining))
-        ),
-        createElement(
-          View,
-          { style: [styles.statusBadge, { backgroundColor: sc.bg }] },
+          { style: styles.bottomLeft },
           createElement(
-            Text,
-            { style: [styles.statusText, { color: sc.text }] },
-            STATUS_LABEL[receipt.paymentStatus] ?? receipt.paymentStatus
+            View,
+            { style: styles.deadlineRow },
+            createElement(Text, { style: styles.deadlineLabel }, "Deadline :"),
+            createElement(Text, { style: styles.deadlineValue }, receipt.date ? formatDate(receipt.date) : "")
+          ),
+          createElement(Text, { style: styles.bankTitle }, "No. Rekening :"),
+          createElement(Text, { style: styles.bankRow }, `BCA   a/n  ${bankBCA}`),
+          createElement(Text, { style: styles.bankRow }, `Mandiri  a/n  ${bankMandiri}`)
+        ),
+
+        // Right: Total / DP / Sisa
+        createElement(
+          View,
+          { style: styles.bottomRight },
+          createElement(
+            View,
+            { style: styles.summaryRow },
+            createElement(Text, { style: styles.summaryLabel }, "Total"),
+            createElement(Text, { style: styles.summaryValue }, formatRupiah(receipt.totalPrice))
+          ),
+          createElement(
+            View,
+            { style: styles.summaryRow },
+            createElement(Text, { style: styles.summaryLabel }, "DP"),
+            createElement(Text, { style: styles.summaryValue }, formatRupiah(receipt.paidAmount))
+          ),
+          createElement(
+            View,
+            { style: styles.summaryRow },
+            createElement(Text, { style: styles.summaryLabel }, "Sisa"),
+            createElement(Text, { style: styles.summaryValue }, formatRupiah(remaining))
           )
         )
       ),
 
-      // Notes
-      receipt.notes
-        ? createElement(
-            View,
-            { style: styles.section },
-            createElement(Text, { style: styles.sectionTitle }, "Catatan"),
-            createElement(Text, { style: { color: "#374151" } }, receipt.notes)
-          )
-        : null,
-
-      // Footer
+      // ── Footer ──────────────────────────────
       createElement(
-        Text,
+        View,
         { style: styles.footer },
-        `${settings.businessName || "MS Collection"} — Terima kasih atas kepercayaan Anda`
+        createElement(Text, { style: styles.footerTitle }, "Perhatian !"),
+        createElement(
+          Text,
+          {},
+          "Barang yg sudah dibeli tidak dapat ditukar/dikembalikan kecuali ada perjanjian."
+        )
       )
     )
   );

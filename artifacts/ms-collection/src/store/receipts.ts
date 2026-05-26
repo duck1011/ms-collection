@@ -22,10 +22,12 @@ interface ReceiptStore {
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  businessName: "MS Collection",
-  businessPhone: "",
-  businessAddress: "",
+  businessName: "CV. Mandiri SEJATI",
+  businessPhone: "085 - 6494 - 15696",
+  businessAddress: "Jl. Mayjend Sungkono No.17, RT.06 RN.03 Buiring, Kedungkandang, MALANG",
   defaultNotes: "",
+  bankBCA: "Grrrito Tuan",
+  bankMandiri: "Grrrito Tuan",
 };
 
 export const useReceiptStore = create<ReceiptStore>((set, get) => ({

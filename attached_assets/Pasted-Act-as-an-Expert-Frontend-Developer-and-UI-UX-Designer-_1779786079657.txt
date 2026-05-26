@@ -1,0 +1,37 @@
+Act as an Expert Frontend Developer and UI/UX Designer specializing in print-ready document design. I need you to create a single, self-contained HTML file with embedded CSS for a professional, ready-to-print Invoice/Nota. 
+
+The design must strictly follow the layout and data of a hand-drawn sketch I have provided the details for below. The output must be clean, well-spaced, and optimized for standard A4 printing.
+
+### 1. EXACT CONTENT TO INCLUDE (Based on the Sketch)
+*   **Header Layout (Crucial):** The company logo must be placed in the top-left corner, exactly as it appears in the sketch. The logo and the company text must be aligned horizontally (logo on left, text on right of logo). Use an `<img>` tag with `src="/logo.png"` (or standard relative path like `src="assets/img/logo.png"`) and style it with a fixed height of 70px to fit neatly beside the text.
+*   **Company Name:** CV. Mandiri SEJATI (Place this immediately to the right of the logo. Make it prominent, bold, and slightly larger).
+*   **Company Details (under the name):** Jl. Mayjend Sungkono No.17... MALANG | 085 - 6494 - 15696
+*   **Document Title:** NOTA / INVOICE (Centered, bold, below the header section).
+*   **Metadata Field:** "Deadline :" (Leave a blank line/space to write the date).
+*   **Table Columns (in this exact order):** Qty | Barang | Harga | Jumlah
+*   **Totals Section (aligned to the right below the table):** 
+    *   Total : (space for amount)
+    *   DP (Down Payment) : (space for amount)
+*   **Payment Information Section (below totals):**
+    *   BCA /n Grrrito Tuan
+    *   Mandiri /n Grrrito Tuan
+*   **Footer/Terms (bottom of the page, smaller font, border-top or separated):** Barang yg sudah dibeli tidak dapat ditukar/dikembalikan (kecuali ada perjanjian)
+
+### 2. LAYOUT & STYLING SPECIFICATIONS
+*   **Paper Size:** A4 standard (210mm x 297mm). Set the CSS `@page` margin to 15mm.
+*   **Font:** Use a clean, professional sans-serif font like 'Arial', 'Helvetica Neue', or 'Inter'.
+*   **Colors:** Professional monochrome. Black text, white background. Use light gray (#f4f4f4) for the table header background to give it a corporate feel. Use a subtle border-bottom for table rows instead of full grid boxes to make it look modern and clean.
+*   **Alignment:** 
+    *   "Qty" and "Jumlah" columns should be center-aligned.
+    *   "Barang" left-aligned.
+    *   "Harga" right-aligned.
+    *   The Totals section must be right-aligned under the "Jumlah" column.
+*   **Spacing:** Ensure adequate padding in table cells (at least 8px) so it doesn't look cramped when printed.
+*   **Print Readiness:** Include CSS `@media print` rules to ensure no unnecessary browser headers/footers override the layout, and ensure all text prints purely in black/gray. Remove any shadows or overly bright colors that look bad on paper. Ensure the logo prints cleanly.
+
+### 3. INTERACTIVE/TEMPLATE FEATURES
+*   Leave the table rows blank but provide at least 8-10 empty rows so the user can print it and fill it in by hand, OR write it in a way that they can easily type into the HTML before printing.
+*   Use a dashed line (`border-bottom: 1px dashed #ccc`) for the empty table rows to indicate where to write.
+
+### 4. OUTPUT REQUIREMENTS
+Provide ONLY the complete, copy-pasteable HTML code (with CSS embedded inside `<style>` tags). Do not split it into multiple files. Ensure the code is clean and immediately renders correctly when opened in a browser and sent to the printer.

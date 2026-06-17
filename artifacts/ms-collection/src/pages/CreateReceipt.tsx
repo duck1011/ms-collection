@@ -73,8 +73,15 @@ type PaymentData = z.infer<typeof paymentSchema>;
 
 const defaultEntry = () => ({
   productType: "Seragam Sekolah" as ProductType,
-  unitPrice: 0,
-  sizes: { XS: 0, S: 0, M: 0, L: 0, XL: 0, XXL: 0 },
+  unitPrice: "" as unknown as number,
+  sizes: {
+    XS: "" as unknown as number,
+    S: "" as unknown as number,
+    M: "" as unknown as number,
+    L: "" as unknown as number,
+    XL: "" as unknown as number,
+    XXL: "" as unknown as number,
+  },
 });
 
 const STEPS = ["Informasi Klien", "Informasi Pesanan", "Pembayaran", "Konfirmasi"];
@@ -400,7 +407,8 @@ export default function CreateReceipt() {
                           data-testid={`input-price-${idx}`}
                           type="number"
                           min={0}
-                          placeholder="0"
+                          placeholder="Masukkan harga..."
+                          className="[appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                         />
                       </div>
 
@@ -418,8 +426,8 @@ export default function CreateReceipt() {
                                 data-testid={`input-size-${idx}-${sz}`}
                                 type="number"
                                 min={0}
-                                placeholder="0"
-                                className="text-center px-1"
+                                placeholder="—"
+                                className="text-center px-1 [appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                               />
                             </div>
                           ))}

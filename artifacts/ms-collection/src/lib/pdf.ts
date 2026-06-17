@@ -460,7 +460,8 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `nota-${receipt.receiptCode}.pdf`;
+  const safeName = receipt.clientName.replace(/[^a-zA-Z0-9\s]/g, "").trim().replace(/\s+/g, "_");
+  a.download = `nota-${safeName}.pdf`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }

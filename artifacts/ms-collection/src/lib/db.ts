@@ -12,12 +12,20 @@ export type ProductType =
 
 export type Size = "XS" | "S" | "M" | "L" | "XL" | "XXL";
 
+export type PriceMode = "single" | "bySize";
+
+export type SizePrices = Record<Size, number>;
+
 export interface OrderItem {
   productType: ProductType;
   size: Size;
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  /** Price mode used when the order was created — "single" for backward compat */
+  priceMode?: PriceMode;
+  /** Per-size prices if priceMode is "bySize" */
+  sizePrices?: SizePrices;
 }
 
 export interface Receipt {

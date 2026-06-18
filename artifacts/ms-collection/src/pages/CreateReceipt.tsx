@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useReceiptStore } from "@/store/receipts";
-import { Receipt, OrderItem, ProductType, Size } from "@/lib/db";
+import { Receipt, OrderItem, ProductType, Size, PriceMode, SizePrices } from "@/lib/db";
 import { generateReceiptCode, formatRupiah, formatDate } from "@/lib/utils";
 import { downloadReceiptPDF } from "@/lib/pdf";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, ChevronLeft, ChevronRight, Check, Download } from "lucide-react";
+import { Plus, Trash2, ChevronLeft, ChevronRight, Check, Download, Ruler } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const PRODUCTS: ProductType[] = [
@@ -51,10 +51,20 @@ const sizeBreakdownSchema = z.object({
   XXL: z.coerce.number().min(0).default(0),
 });
 
+const sizePricesSchema = z.object({
+  XS: z.coerce.number().min(0).default(0),
+  S: z.coerce.number().min(0).default(0),
+  M: z.coerce.number().min(0).default(0),
+  L: z.coerce.number().min(0).default(0),
+  XL: z.coerce.number().min(0).default(0),
+  XXL: z.coerce.number().min(0).default(0),
+});
+
 const entrySchema = z.object({
   productType: z.string().min(1, "Pilih produk"),
   unitPrice: z.coerce.number().min(0, "Harga tidak valid"),
   sizes: sizeBreakdownSchema,
+  sizePrices: sizePricesSchema.optional(),
 });
 
 const orderSchema = z.object({
@@ -82,20 +92,68 @@ const defaultEntry = () => ({
     XL: "" as unknown as number,
     XXL: "" as unknown as number,
   },
+  sizePrices: {
+    XS: "" as unknown as number,
+    S: "" as unknown as number,
+    M: "" as unknown as number,
+    L: "" as unknown as number,
+    XL: "" as unknown as number,
+    XXL: "" as unknown as number,
+  },
 });
 
 const STEPS = ["Informasi Klien", "Informasi Pesanan", "Pembayaran", "Konfirmasi"];
 
-function calcEntryTotal(sizes: Record<string, number>, unitPrice: number) {
+// ── Calculation helpers ──────────────────────────────────────────────
+
+/** Calculate total qty and subtotal for a single entry (supports both price modes) */
+function calcEntryTotal(
+  sizes: Record<string, number>,
+  unitPrice: number,
+  priceMode: PriceMode = "single",
+  sizePrices?: Record<string, number>,
+) {
   const totalQty = SIZES.reduce((s, sz) => s + (Number(sizes[sz]) || 0), 0);
-  return { totalQty, subtotal: totalQty * (Number(unitPrice) || 0) };
+
+  let subtotal: number;
+  if (priceMode === "bySize" && sizePrices) {
+    subtotal = SIZES.reduce((s, sz) => {
+      const qty = Number(sizes[sz]) || 0;
+      const price = Number(sizePrices[sz]) || 0;
+      return s + qty * price;
+    }, 0);
+  } else {
+    subtotal = totalQty * (Number(unitPrice) || 0);
+  }
+
+  return { totalQty, subtotal };
 }
+
+/** Calculate subtotal for a single size row */
+function calcSizeSubtotal(qty: number, price: number): number {
+  return (qty || 0) * (price || 0);
+}
+
+/** Build a fresh sizePrices record with default empty values */
+function emptySizePrices(): Record<string, number> {
+  return {
+    XS: "" as unknown as number,
+    S: "" as unknown as number,
+    M: "" as unknown as number,
+    L: "" as unknown as number,
+    XL: "" as unknown as number,
+    XXL: "" as unknown as number,
+  };
+}
+
+// ── Component ────────────────────────────────────────────────────────
 
 export default function CreateReceipt() {
   const [step, setStep] = useState(0);
   const [clientData, setClientData] = useState<ClientData | null>(null);
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [saving, setSaving] = useState(false);
+  const [priceModes, setPriceModes] = useState<PriceMode[]>([]);
   const { receipts, addReceipt, settings, load, loaded } = useReceiptStore();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -131,58 +189,114 @@ export default function CreateReceipt() {
 
   const watchEntries = orderForm.watch("entries");
 
-  const grandTotal = watchEntries.reduce((sum, entry) => {
-    const { subtotal } = calcEntryTotal(entry.sizes, entry.unitPrice);
+  const grandTotal = watchEntries.reduce((sum, entry, idx) => {
+    const mode = priceModes[idx] ?? "single";
+    const { subtotal } = calcEntryTotal(
+      entry.sizes ?? {},
+      entry.unitPrice,
+      mode,
+      entry.sizePrices,
+    );
     return sum + subtotal;
   }, 0);
 
   const watchStatus = paymentForm.watch("paymentStatus");
   const watchPaid = paymentForm.watch("paidAmount");
 
+  const togglePriceMode = useCallback(
+    (idx: number) => {
+      setPriceModes((prev) => {
+        const next = [...prev];
+        const current = next[idx] ?? "single";
+        next[idx] = current === "single" ? "bySize" : "single";
+        // Initialize sizePrices when turning on
+        if (next[idx] === "bySize") {
+          const currentSizePrices = orderForm.getValues(`entries.${idx}.sizePrices`);
+          if (!currentSizePrices) {
+            orderForm.setValue(`entries.${idx}.sizePrices`, {
+              XS: "" as unknown as number,
+              S: "" as unknown as number,
+              M: "" as unknown as number,
+              L: "" as unknown as number,
+              XL: "" as unknown as number,
+              XXL: "" as unknown as number,
+            });
+          }
+        }
+        return next;
+      });
+    },
+    [orderForm],
+  );
+
   // Flatten size-breakdown entries into OrderItems (one row per size with qty > 0)
-  const flattenEntries = (entries: OrderData["entries"]): OrderItem[] => {
-    const items: OrderItem[] = [];
-    for (const entry of entries) {
-      const unitPrice = Number(entry.unitPrice) || 0;
-      for (const sz of SIZES) {
-        const qty = Number(entry.sizes[sz as Size]) || 0;
-        if (qty > 0) {
-          items.push({
-            productType: entry.productType as ProductType,
-            size: sz as Size,
-            quantity: qty,
-            unitPrice,
-            subtotal: qty * unitPrice,
-          });
+  const flattenEntries = useCallback(
+    (entries: OrderData["entries"]): OrderItem[] => {
+      const items: OrderItem[] = [];
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        const mode = priceModes[i] ?? "single";
+        const sizePrices = entry.sizePrices as SizePrices | undefined;
+
+        for (const sz of SIZES) {
+          const qty = Number(entry.sizes[sz as Size]) || 0;
+          if (qty <= 0) continue;
+
+          if (mode === "bySize" && sizePrices) {
+            const sizePrice = Number(sizePrices[sz as Size]) || 0;
+            items.push({
+              productType: entry.productType as ProductType,
+              size: sz as Size,
+              quantity: qty,
+              unitPrice: sizePrice,
+              subtotal: qty * sizePrice,
+              priceMode: "bySize",
+              sizePrices,
+            });
+          } else {
+            const unitPrice = Number(entry.unitPrice) || 0;
+            items.push({
+              productType: entry.productType as ProductType,
+              size: sz as Size,
+              quantity: qty,
+              unitPrice,
+              subtotal: qty * unitPrice,
+              priceMode: "single",
+            });
+          }
         }
       }
-    }
-    return items;
-  };
+      return items;
+    },
+    [priceModes],
+  );
 
-  const buildReceipt = (payment: PaymentData): Receipt => {
-    const code = generateReceiptCode(receipts.map((r) => r.receiptCode));
-    const items = flattenEntries(orderData!.entries);
-    const total = items.reduce((s, i) => s + i.subtotal, 0);
-    let paid = 0;
-    if (payment.paymentStatus === "PAID") paid = total;
-    else if (payment.paymentStatus === "PARTIALLY_PAID") paid = Number(payment.paidAmount) || 0;
+  const buildReceipt = useCallback(
+    (payment: PaymentData): Receipt => {
+      const code = generateReceiptCode(receipts.map((r) => r.receiptCode));
+      const items = flattenEntries(orderData!.entries);
+      const total = items.reduce((s, i) => s + i.subtotal, 0);
+      let paid = 0;
+      if (payment.paymentStatus === "PAID") paid = total;
+      else if (payment.paymentStatus === "PARTIALLY_PAID") paid = Number(payment.paidAmount) || 0;
 
-    return {
-      id: code,
-      receiptCode: code,
-      clientName: clientData!.clientName,
-      clientPhone: clientData!.clientPhone,
-      schoolOrOrganization: clientData!.schoolOrOrganization,
-      date: clientData!.date,
-      createdAt: new Date().toISOString(),
-      items,
-      totalPrice: total,
-      paidAmount: paid,
-      paymentStatus: payment.paymentStatus,
-      notes: payment.notes,
-    };
-  };
+      return {
+        id: code,
+        receiptCode: code,
+        clientName: clientData!.clientName,
+        clientPhone: clientData!.clientPhone,
+        schoolOrOrganization: clientData!.schoolOrOrganization,
+        date: clientData!.date,
+        createdAt: new Date().toISOString(),
+        items,
+        totalPrice: total,
+        paidAmount: paid,
+        paymentStatus: payment.paymentStatus,
+        notes: payment.notes,
+      };
+    },
+    [receipts, orderData, clientData, flattenEntries],
+  );
 
   const handleSave = async (withPDF = false) => {
     const payment = paymentForm.getValues();
@@ -251,6 +365,7 @@ export default function CreateReceipt() {
             <form
               onSubmit={clientForm.handleSubmit((data) => {
                 setClientData(data);
+                setPriceModes(new Array(fields.length).fill("single"));
                 setStep(1);
               })}
               className="space-y-5"
@@ -315,7 +430,7 @@ export default function CreateReceipt() {
           </motion.div>
         )}
 
-        {/* Step 2 — Order Info (size breakdown) */}
+        {/* Step 2 — Order Info (size breakdown with optional per-size pricing) */}
         {step === 1 && (
           <motion.div
             key="step1"
@@ -326,7 +441,7 @@ export default function CreateReceipt() {
             <form
               onSubmit={orderForm.handleSubmit((data) => {
                 const hasQty = data.entries.some((e) =>
-                  SIZES.some((sz) => (Number(e.sizes[sz as Size]) || 0) > 0)
+                  SIZES.some((sz) => (Number(e.sizes[sz as Size]) || 0) > 0),
                 );
                 if (!hasQty) {
                   toast({
@@ -348,7 +463,10 @@ export default function CreateReceipt() {
                     size="sm"
                     variant="outline"
                     data-testid="button-add-product"
-                    onClick={() => append(defaultEntry())}
+                    onClick={() => {
+                      append(defaultEntry());
+                      setPriceModes((prev) => [...prev, "single"]);
+                    }}
                   >
                     <Plus className="w-3 h-3 mr-1" /> Tambah Produk
                   </Button>
@@ -356,9 +474,12 @@ export default function CreateReceipt() {
 
                 {fields.map((field, idx) => {
                   const entry = watchEntries[idx] ?? field;
+                  const mode = priceModes[idx] ?? "single";
                   const { totalQty, subtotal } = calcEntryTotal(
                     entry.sizes ?? {},
-                    entry.unitPrice
+                    entry.unitPrice,
+                    mode,
+                    entry.sizePrices,
                   );
 
                   return (
@@ -391,7 +512,14 @@ export default function CreateReceipt() {
                         {fields.length > 1 && (
                           <button
                             type="button"
-                            onClick={() => remove(idx)}
+                            onClick={() => {
+                              remove(idx);
+                              setPriceModes((prev) => {
+                                const next = [...prev];
+                                next.splice(idx, 1);
+                                return next;
+                              });
+                            }}
                             className="text-muted-foreground hover:text-red-500 transition-colors mt-5"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -399,17 +527,97 @@ export default function CreateReceipt() {
                         )}
                       </div>
 
-                      {/* Unit price */}
-                      <div className="space-y-1.5">
-                        <Label>Harga Satuan (Rp)</Label>
-                        <Input
-                          {...orderForm.register(`entries.${idx}.unitPrice`)}
-                          data-testid={`input-price-${idx}`}
-                          type="number"
-                          min={0}
-                          placeholder="Masukkan harga..."
-                          className="[appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
-                        />
+                      {/* Price section — toggle + single price OR per-size prices */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label>Harga</Label>
+                          <Button
+                            type="button"
+                            variant={mode === "bySize" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => togglePriceMode(idx)}
+                            className="h-8 gap-1.5 text-xs"
+                            data-testid={`toggle-price-mode-${idx}`}
+                          >
+                            <Ruler className="w-3.5 h-3.5" />
+                            {mode === "bySize"
+                              ? "Harga per Ukuran ON"
+                              : "Set Price by Size"}
+                          </Button>
+                        </div>
+
+                        <AnimatePresence mode="wait">
+                          {mode === "single" ? (
+                            <motion.div
+                              key={`single-price-${idx}`}
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="space-y-1.5 overflow-hidden"
+                            >
+                              <Label className="text-xs text-muted-foreground">
+                                Harga Satuan (Rp)
+                              </Label>
+                              <Input
+                                {...orderForm.register(`entries.${idx}.unitPrice`)}
+                                data-testid={`input-price-${idx}`}
+                                type="number"
+                                min={0}
+                                placeholder="Masukkan harga..."
+                                className="[appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                              />
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key={`size-prices-${idx}`}
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="space-y-2 overflow-hidden"
+                            >
+                              <Label className="text-xs text-muted-foreground">
+                                Harga per Ukuran (Rp)
+                              </Label>
+                              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                {SIZES.map((sz) => (
+                                  <div key={sz} className="space-y-1">
+                                    <p className="text-xs text-center text-muted-foreground font-medium">
+                                      {sz}
+                                    </p>
+                                    <Input
+                                      {...orderForm.register(
+                                        `entries.${idx}.sizePrices.${sz as Size}`,
+                                      )}
+                                      data-testid={`input-size-price-${idx}-${sz}`}
+                                      type="number"
+                                      min={0}
+                                      placeholder="—"
+                                      className="text-center px-1 [appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                                    />
+                                    {/* Show per-size subtotal if qty > 0 */}
+                                    {(() => {
+                                      const qty = Number(entry.sizes?.[sz as Size]) || 0;
+                                      const price =
+                                        Number(
+                                          orderForm.watch(
+                                            `entries.${idx}.sizePrices.${sz as Size}`,
+                                          ),
+                                        ) || 0;
+                                      if (qty > 0 && price > 0) {
+                                        return (
+                                          <p className="text-[10px] text-center text-muted-foreground">
+                                            {formatRupiah(calcSizeSubtotal(qty, price))}
+                                          </p>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
+                                  </div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
 
                       {/* Size breakdown grid */}
@@ -456,10 +664,7 @@ export default function CreateReceipt() {
                 {/* Grand total */}
                 <div className="flex justify-between items-center pt-2 border-t border-border">
                   <span className="text-sm font-semibold">Total Keseluruhan</span>
-                  <span
-                    className="text-lg font-bold"
-                    data-testid="text-total-price"
-                  >
+                  <span className="text-lg font-bold" data-testid="text-total-price">
                     {formatRupiah(grandTotal)}
                   </span>
                 </div>
@@ -503,7 +708,7 @@ export default function CreateReceipt() {
                     onValueChange={(v) =>
                       paymentForm.setValue(
                         "paymentStatus",
-                        v as "PAID" | "PARTIALLY_PAID" | "UNPAID"
+                        v as "PAID" | "PARTIALLY_PAID" | "UNPAID",
                       )
                     }
                   >
@@ -529,10 +734,7 @@ export default function CreateReceipt() {
                       placeholder="0"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Sisa:{" "}
-                      {formatRupiah(
-                        Math.max(0, grandTotal - (Number(watchPaid) || 0))
-                      )}
+                      Sisa: {formatRupiah(Math.max(0, grandTotal - (Number(watchPaid) || 0)))}
                     </p>
                   </div>
                 )}
@@ -587,10 +789,7 @@ export default function CreateReceipt() {
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground">Kode Nota</p>
-                  <p
-                    className="text-sm font-mono font-bold"
-                    data-testid="text-receipt-code"
-                  >
+                  <p className="text-sm font-mono font-bold" data-testid="text-receipt-code">
                     {previewReceipt.receiptCode}
                   </p>
                 </div>
@@ -653,7 +852,7 @@ export default function CreateReceipt() {
                   <span className="text-muted-foreground">Sisa</span>
                   <span className="text-red-400 font-medium">
                     {formatRupiah(
-                      Math.max(0, previewReceipt.totalPrice - previewReceipt.paidAmount)
+                      Math.max(0, previewReceipt.totalPrice - previewReceipt.paidAmount),
                     )}
                   </span>
                 </div>

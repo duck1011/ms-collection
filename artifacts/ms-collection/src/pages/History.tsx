@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useReceiptStore } from "@/store/receipts";
+import { useFinancialStore } from "@/store/financial";
 import { Receipt } from "@/lib/db";
 import { formatRupiah, formatDateShort } from "@/lib/utils";
 import { downloadReceiptPDF } from "@/lib/pdf";

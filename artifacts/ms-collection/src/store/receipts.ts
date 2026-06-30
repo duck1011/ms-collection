@@ -2,12 +2,18 @@ import { create } from "zustand";
 import {
   Receipt,
   Settings,
+  Project,
   getReceipts,
   saveReceipt,
   deleteReceipt,
   getSettings,
   saveSettings,
   seedDB,
+  getProjects,
+  saveProject,
+  cascadeDeleteReceipt,
+  migrateExistingReceiptsToProjects,
+  recalculateProject,
 } from "@/lib/db";
 
 interface ReceiptStore {
@@ -36,25 +42,62 @@ export const useReceiptStore = create<ReceiptStore>((set, get) => ({
   loaded: false,
 
   load: async () => {
-    await seedDB();
-    const [receipts, settings] = await Promise.all([
-      getReceipts(),
-      getSettings(),
-    ]);
-    set({
-      receipts,
-      settings: settings ?? DEFAULT_SETTINGS,
-      loaded: true,
-    });
+    try {
+      await seedDB();
+      // Run migration for existing receipts to create projects
+      try {
+        await migrateExistingReceiptsToProjects();
+      } catch (err) {
+        console.warn('[ReceiptStore] Migration error (non-fatal):', err);
+      }
+      const [receipts, settings] = await Promise.all([
+        getReceipts(),
+        getSettings(),
+      ]);
+      set({
+        receipts: receipts || [],
+        settings: settings ?? DEFAULT_SETTINGS,
+        loaded: true,
+      });
+    } catch (err) {
+      console.error('[ReceiptStore] Error loading data:', err);
+      set({
+        receipts: [],
+        settings: DEFAULT_SETTINGS,
+        loaded: true,
+      });
+    }
   },
 
   addReceipt: async (receipt) => {
     await saveReceipt(receipt);
+    
+    // Auto-create project when a receipt is created
+    const project: Project = {
+      id: `proj-${receipt.receiptCode}`,
+      receiptCode: receipt.receiptCode,
+      projectName: receipt.clientName,
+      customerName: receipt.schoolOrOrganization,
+      contractValue: receipt.totalPrice,
+      totalRevenueReceived: receipt.paidAmount,
+      totalExpenses: 0,
+      profitMargin: receipt.paidAmount, // Initially = revenue (no expenses yet)
+      paymentStatus: receipt.paymentStatus,
+      projectStatus: "active",
+      createdAt: receipt.createdAt,
+      updatedAt: new Date().toISOString(),
+    };
+    await saveProject(project);
+
     set((s) => ({ receipts: [...s.receipts, receipt] }));
   },
 
   updateReceipt: async (receipt) => {
     await saveReceipt(receipt);
+    
+    // Recalculate project - this handles all project fields including profitMargin
+    await recalculateProject(receipt.receiptCode);
+    
     set((s) => ({
       receipts: s.receipts.map((r) =>
         r.receiptCode === receipt.receiptCode ? receipt : r
@@ -63,7 +106,8 @@ export const useReceiptStore = create<ReceiptStore>((set, get) => ({
   },
 
   removeReceipt: async (receiptCode) => {
-    await deleteReceipt(receiptCode);
+    // Cascade delete: receipt, spendings, payments, project
+    await cascadeDeleteReceipt(receiptCode);
     set((s) => ({
       receipts: s.receipts.filter((r) => r.receiptCode !== receiptCode),
     }));

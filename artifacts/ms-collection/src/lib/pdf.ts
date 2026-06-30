@@ -37,16 +37,12 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       fontSize: 10,
       color: "#333333",
     },
-
-    // ── Header: two-column borderless layout ─────────────────
     header: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "flex-start",
       marginBottom: 10,
     },
-
-    // LEFT column — brand identity
     headerLeft: {
       flexDirection: "row",
       alignItems: "flex-start",
@@ -80,8 +76,6 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       color: "#666666",
       marginTop: 2,
     },
-
-    // RIGHT column — invoice meta
     headerRight: {
       flexDirection: "column",
       alignItems: "flex-end",
@@ -102,14 +96,10 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       fontSize: 9,
       color: "#333333",
     },
-
-    // ── Separator line ───────────────────────────────────────
     separator: {
       borderBottom: "1px solid #e0e0e0",
       marginBottom: 8,
     },
-
-    // ── Recipient block ──────────────────────────────────────
     recipientBlock: {
       marginBottom: 12,
     },
@@ -123,8 +113,6 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       fontSize: 8.5,
       color: "#666666",
     },
-
-    // ── Document title ───────────────────────────────────────
     docTitle: {
       textAlign: "center",
       fontSize: 13,
@@ -136,8 +124,6 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       paddingVertical: 4,
       letterSpacing: 1,
     },
-
-    // ── Table ────────────────────────────────────────────────
     table: {
       marginBottom: 8,
     },
@@ -166,8 +152,6 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
     colJumlah: { width: 88, textAlign: "right" },
     colHeaderText: { fontFamily: "Helvetica-Bold", fontSize: 8.5, color: "#ffffff", letterSpacing: 0.5 },
     colCellText: { fontSize: 9, color: "#333333" },
-
-    // ── Bottom section ───────────────────────────────────────
     bottomSection: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -196,40 +180,6 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       color: "#333333",
       marginLeft: 4,
     },
-    bankTitle: {
-      fontSize: 8.5,
-      fontFamily: "Helvetica-Bold",
-      color: "#000000",
-      marginBottom: 8,
-    },
-    bankRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginBottom: 8,
-    },
-    bankLogoBox: {
-      width: 72,
-      height: 20,
-      justifyContent: "center",
-      alignItems: "flex-start",
-      marginRight: 10,
-    },
-    bankLogo: {
-      width: 72,
-      height: 20,
-      objectFit: "contain",
-    },
-    bankAccountLabel: {
-      fontSize: 8.5,
-      color: "#888888",
-      width: 24,
-      marginRight: 6,
-    },
-    bankAccountName: {
-      fontSize: 8.5,
-      color: "#333333",
-    },
-
     bottomRight: {
       width: 180,
       flexDirection: "column",
@@ -244,8 +194,6 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
     },
     summaryLabel: { fontSize: 9, fontFamily: "Helvetica-Bold", color: "#000000" },
     summaryValue: { fontSize: 9, color: "#333333" },
-
-    // ── Footer ───────────────────────────────────────────────
     footer: {
       marginTop: 16,
       borderTop: "1px solid #e0e0e0",
@@ -259,13 +207,49 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       color: "#333333",
       marginBottom: 2,
     },
+    // Banking styles for footer
+    bankFooterSection: {
+      marginBottom: 8,
+    },
+    bankFooterTitle: {
+      fontFamily: "Helvetica-Bold",
+      fontSize: 8.5,
+      color: "#333333",
+      marginBottom: 4,
+    },
+    bankFooterRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 4,
+    },
+    bankFooterLogoBox: {
+      width: 60,
+      height: 16,
+      justifyContent: "center",
+      alignItems: "flex-start",
+      marginRight: 8,
+    },
+    bankFooterLogo: {
+      width: 60,
+      height: 16,
+      objectFit: "contain",
+    },
+    bankFooterLabel: {
+      fontSize: 8,
+      color: "#888888",
+      width: 20,
+      marginRight: 4,
+    },
+    bankFooterName: {
+      fontSize: 8,
+      color: "#333333",
+    },
   });
 
   const remaining = Math.max(0, receipt.totalPrice - receipt.paidAmount);
   const bankBCA = settings.bankBCA || "—";
   const bankMandiri = settings.bankMandiri || "—";
 
-  // Parse address into up to 3 lines
   const rawAddress = settings.businessAddress || "";
   const [addrLine1 = "", addrLine2 = "", addrLine3 = ""] = rawAddress
     .split(/,\s*/)
@@ -287,8 +271,6 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
       createElement(
         View,
         { style: styles.header },
-
-        // LEFT: logo + brand
         createElement(
           View,
           { style: styles.headerLeft },
@@ -299,20 +281,12 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
             View,
             { style: styles.brandBlock },
             createElement(Text, { style: styles.businessName }, (settings.businessName || "CV. Mandiri SEJATI").toUpperCase()),
-            addrLine1
-              ? createElement(Text, { style: styles.addressLine }, addrLine1)
-              : null,
-            addrLine2
-              ? createElement(Text, { style: styles.addressLine }, addrLine2)
-              : null,
-            addrLine3
-              ? createElement(Text, { style: styles.addressLine }, addrLine3)
-              : null,
+            addrLine1 ? createElement(Text, { style: styles.addressLine }, addrLine1) : null,
+            addrLine2 ? createElement(Text, { style: styles.addressLine }, addrLine2) : null,
+            addrLine3 ? createElement(Text, { style: styles.addressLine }, addrLine3) : null,
             createElement(Text, { style: styles.phoneLine }, settings.businessPhone || "")
           )
         ),
-
-        // RIGHT: date only
         createElement(
           View,
           { style: styles.headerRight },
@@ -325,7 +299,6 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
         )
       ),
 
-      // ── Separator ──────────────────────────────────────────
       createElement(View, { style: styles.separator }),
 
       // ── Recipient ──────────────────────────────────────────
@@ -336,7 +309,6 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
         createElement(Text, { style: styles.recipientPhone }, `Tlp: ${receipt.clientPhone}`)
       ),
 
-      // ── Document title ─────────────────────────────────────
       createElement(Text, { style: styles.docTitle }, "NOTA / INVOICE"),
 
       // ── Table ──────────────────────────────────────────────
@@ -373,51 +345,33 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
         )
       ),
 
-      // ── Bottom: bank info + totals ──────────────────────────
+      // ── Bottom: Catatan + Deadline (left) | Total/DP/Sisa (right) ──
       createElement(
         View,
         { style: styles.bottomSection },
-
-        // Left: Deadline + bank accounts
         createElement(
           View,
           { style: styles.bottomLeft },
+          // Catatan section (only if notes exist) — placed above Deadline
+          receipt.notes
+            ? createElement(
+                View,
+                {},
+                createElement(Text, { style: styles.footerTitle }, "Catatan"),
+                createElement(
+                  Text,
+                  { style: { fontSize: 8.5, color: "#666666", marginBottom: 6 } },
+                  receipt.notes
+                )
+              )
+            : null,
           createElement(
             View,
             { style: styles.deadlineRow },
             createElement(Text, { style: styles.deadlineLabel }, "Deadline :"),
             createElement(Text, { style: styles.deadlineValue }, formatDate(receipt.date))
-          ),
-          createElement(Text, { style: styles.bankTitle }, "No. Rekening :"),
-          createElement(
-            View,
-            { style: styles.bankRow },
-            createElement(
-              View,
-              { style: styles.bankLogoBox },
-              bcaDataUrl
-                ? createElement(Image, { style: styles.bankLogo, src: bcaDataUrl })
-                : createElement(Text, { style: styles.bankAccountName }, "BCA")
-            ),
-            createElement(Text, { style: styles.bankAccountLabel }, "a/n"),
-            createElement(Text, { style: styles.bankAccountName }, bankBCA)
-          ),
-          createElement(
-            View,
-            { style: styles.bankRow },
-            createElement(
-              View,
-              { style: styles.bankLogoBox },
-              mandiriDataUrl
-                ? createElement(Image, { style: styles.bankLogo, src: mandiriDataUrl })
-                : createElement(Text, { style: styles.bankAccountName }, "Mandiri")
-            ),
-            createElement(Text, { style: styles.bankAccountLabel }, "a/n"),
-            createElement(Text, { style: styles.bankAccountName }, bankMandiri)
           )
         ),
-
-        // Right: Total / DP / Sisa
         createElement(
           View,
           { style: styles.bottomRight },
@@ -442,10 +396,42 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
         )
       ),
 
-      // ── Footer ─────────────────────────────────────────────
+      // ── Footer: Banking info + Perhatian ────────────────────
       createElement(
         View,
         { style: styles.footer },
+        // Banking information moved to footer
+        createElement(
+          View,
+          { style: styles.bankFooterSection },
+          createElement(Text, { style: styles.bankFooterTitle }, "Informasi Pembayaran"),
+          createElement(
+            View,
+            { style: styles.bankFooterRow },
+            createElement(
+              View,
+              { style: styles.bankFooterLogoBox },
+              bcaDataUrl
+                ? createElement(Image, { style: styles.bankFooterLogo, src: bcaDataUrl })
+                : createElement(Text, { style: styles.bankFooterName }, "BCA")
+            ),
+            createElement(Text, { style: styles.bankFooterLabel }, "a/n"),
+            createElement(Text, { style: styles.bankFooterName }, bankBCA)
+          ),
+          createElement(
+            View,
+            { style: styles.bankFooterRow },
+            createElement(
+              View,
+              { style: styles.bankFooterLogoBox },
+              mandiriDataUrl
+                ? createElement(Image, { style: styles.bankFooterLogo, src: mandiriDataUrl })
+                : createElement(Text, { style: styles.bankFooterName }, "Mandiri")
+            ),
+            createElement(Text, { style: styles.bankFooterLabel }, "a/n"),
+            createElement(Text, { style: styles.bankFooterName }, bankMandiri)
+          )
+        ),
         createElement(Text, { style: styles.footerTitle }, "Perhatian !"),
         createElement(
           Text,

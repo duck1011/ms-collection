@@ -15,7 +15,7 @@ const port = Number(rawPort);
 const finalPort = Number.isNaN(port) || port <= 0 ? 5173 : port;
 
 export default defineConfig({
-  base: "/",
+  base: "/ms-collection/",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

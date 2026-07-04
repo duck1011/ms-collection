@@ -12,7 +12,10 @@ import FinancialDashboard from "@/pages/FinancialDashboard";
 import LockScreen from "@/pages/LockScreen";
 import NotFound from "@/pages/not-found";
 import { isAuthenticated } from "@/lib/auth";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useReceiptStore } from "@/store/receipts";
+import { useFinancialStore } from "@/store/financial";
+import { isSupabaseConfigured, recoverDataFromSupabaseAndRestore } from "@/lib/supabase-sync";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +55,50 @@ function Router() {
   );
 }
 
+// ── Data Recovery Component ────────────────────────────────────────
+
+function DataRecovery() {
+  const recovered = useRef(false);
+  const { load: loadReceipts, loaded: receiptsLoaded } = useReceiptStore();
+  const { load: loadFinancial, loaded: financialLoaded } = useFinancialStore();
+
+  useEffect(() => {
+    if (recovered.current) return;
+    if (!isAuthenticated()) return;
+
+    recovered.current = true;
+
+    // Load local data first
+    loadReceipts();
+    loadFinancial();
+
+    // Then attempt Supabase data recovery (Phase 7) — fetches AND writes to stores
+    if (isSupabaseConfigured()) {
+      recoverDataFromSupabaseAndRestore()
+        .then((counts) => {
+          if (counts.invoices > 0 || counts.projects > 0) {
+            console.log(
+              "[DataRecovery] Successfully restored",
+              counts.invoices,
+              "invoices,",
+              counts.invoiceItems,
+              "items,",
+              counts.projects,
+              "projects,",
+              counts.monthlyReports,
+              "reports from Supabase"
+            );
+          }
+        })
+        .catch((err: unknown) => {
+          console.warn("[DataRecovery] Supabase recovery error:", err);
+        });
+    }
+  }, [loadReceipts, loadFinancial]);
+
+  return null;
+}
+
 // ── App ────────────────────────────────────────────────────────────
 
 function App() {
@@ -59,6 +106,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter hook={useHashLocation}>
+          <DataRecovery />
           <Router />
         </WouterRouter>
         <Toaster />

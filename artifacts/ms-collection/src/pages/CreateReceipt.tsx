@@ -5,7 +5,7 @@ import { z } from "zod";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useReceiptStore } from "@/store/receipts";
-import { Receipt, OrderItem, ProductType, Size, PriceMode, SizePrices } from "@/lib/db";
+import { Receipt, OrderItem, ProductType, Size, PriceMode, SizePrices, ProductCategory, ProductSubcategory } from "@/lib/db";
 import { generateReceiptCode, formatRupiah, formatDate } from "@/lib/utils";
 import { downloadReceiptPDF } from "@/lib/pdf";
 import { Button } from "@/components/ui/button";
@@ -22,16 +22,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, ChevronLeft, ChevronRight, Check, Download, Ruler } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const PRODUCTS: ProductType[] = [
-  "Seragam Sekolah",
-  "Jaket Almamater",
-  "Seragam Basket",
-  "Seragam Voli",
-  "Seragam Badminton",
-  "Seragam Futsal",
-  "Jaket Kelas",
-  "Custom Apparel",
+// ── Category / Subcategory data ──────────────────────────────────────
+
+const CATEGORIES: ProductCategory[] = [
+  "Seragam / Kamega",
+  "Jersey",
+  "Jaket",
+  "Attribute",
 ];
+
+const SUBCATEGORIES: Record<ProductCategory, ProductSubcategory[]> = {
+  "Seragam / Kamega": ["Sekolah", "Olahraga", "Customized"],
+  "Jersey": ["Basket", "Voli", "Futsal", "Others"],
+  "Jaket": ["Almamater", "Customized"],
+  "Attribute": ["Topi", "Kerudung", "Dasi / Hasduk", "Badge", "Paulit", "Sabuk", "Customized"],
+};
 
 const SIZES: Size[] = ["XS", "S", "M", "L", "XL", "XXL"];
 
@@ -61,11 +66,21 @@ const sizePricesSchema = z.object({
 });
 
 const entrySchema = z.object({
-  productType: z.string().min(1, "Pilih produk"),
+  category: z.string().min(1, "Pilih kategori"),
+  subcategory: z.string().min(1, "Pilih jenis produk"),
+  customProductName: z.string().optional(),
   unitPrice: z.coerce.number().min(0, "Harga tidak valid"),
   sizes: sizeBreakdownSchema,
   sizePrices: sizePricesSchema.optional(),
-});
+}).refine(
+  (data) => {
+    if (data.subcategory === "Customized" || data.subcategory === "Others") {
+      return data.customProductName && data.customProductName.trim().length > 0;
+    }
+    return true;
+  },
+  { message: "Nama produk wajib diisi", path: ["customProductName"] },
+);
 
 const orderSchema = z.object({
   entries: z.array(entrySchema).min(1),
@@ -82,7 +97,9 @@ type OrderData = z.infer<typeof orderSchema>;
 type PaymentData = z.infer<typeof paymentSchema>;
 
 const defaultEntry = () => ({
-  productType: "Seragam Sekolah" as ProductType,
+  category: "Seragam / Kamega" as ProductCategory,
+  subcategory: "Sekolah" as ProductSubcategory,
+  customProductName: "",
   unitPrice: "" as unknown as number,
   sizes: {
     XS: "" as unknown as number,
@@ -144,6 +161,22 @@ function emptySizePrices(): Record<string, number> {
     XL: "" as unknown as number,
     XXL: "" as unknown as number,
   };
+}
+
+/** Get the display label for a product based on category/subcategory/customProductName */
+function getProductDisplayLabel(
+  category?: string,
+  subcategory?: string,
+  customProductName?: string,
+): string {
+  if (!category) return "";
+  if (subcategory === "Customized" || subcategory === "Others") {
+    if (customProductName) {
+      return `${category} — ${subcategory} (${customProductName})`;
+    }
+    return `${category} — ${subcategory}`;
+  }
+  return `${category} — ${subcategory || ""}`;
 }
 
 // ── Component ────────────────────────────────────────────────────────
@@ -245,23 +278,29 @@ export default function CreateReceipt() {
           if (mode === "bySize" && sizePrices) {
             const sizePrice = Number(sizePrices[sz as Size]) || 0;
             items.push({
-              productType: entry.productType as ProductType,
+              productType: "Custom Apparel" as ProductType,
               size: sz as Size,
               quantity: qty,
               unitPrice: sizePrice,
               subtotal: qty * sizePrice,
               priceMode: "bySize",
               sizePrices,
+              category: entry.category as ProductCategory,
+              subcategory: entry.subcategory as ProductSubcategory,
+              customProductName: entry.customProductName || undefined,
             });
           } else {
             const unitPrice = Number(entry.unitPrice) || 0;
             items.push({
-              productType: entry.productType as ProductType,
+              productType: "Custom Apparel" as ProductType,
               size: sz as Size,
               quantity: qty,
               unitPrice,
               subtotal: qty * unitPrice,
               priceMode: "single",
+              category: entry.category as ProductCategory,
+              subcategory: entry.subcategory as ProductSubcategory,
+              customProductName: entry.customProductName || undefined,
             });
           }
         }
@@ -430,7 +469,7 @@ export default function CreateReceipt() {
           </motion.div>
         )}
 
-        {/* Step 2 — Order Info (size breakdown with optional per-size pricing) */}
+        {/* Step 2 — Order Info (Category → Subcategory → Custom Name + size breakdown with optional per-size pricing) */}
         {step === 1 && (
           <motion.div
             key="step1"
@@ -482,6 +521,11 @@ export default function CreateReceipt() {
                     entry.sizePrices,
                   );
 
+                  const selectedCategory = orderForm.watch(`entries.${idx}.category`) as ProductCategory | undefined;
+                  const selectedSubcategory = orderForm.watch(`entries.${idx}.subcategory`) as ProductSubcategory | undefined;
+                  const availableSubcategories = selectedCategory ? SUBCATEGORIES[selectedCategory] : [];
+                  const showCustomName = selectedSubcategory === "Customized" || selectedSubcategory === "Others";
+
                   return (
                     <div
                       key={field.id}
@@ -490,24 +534,32 @@ export default function CreateReceipt() {
                       {/* Product header */}
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex-1 space-y-1.5">
-                          <Label>Produk</Label>
+                          <Label>Kategori Produk</Label>
                           <Select
-                            value={orderForm.watch(`entries.${idx}.productType`)}
-                            onValueChange={(v) =>
-                              orderForm.setValue(`entries.${idx}.productType`, v)
-                            }
+                            value={selectedCategory}
+                            onValueChange={(v) => {
+                              orderForm.setValue(`entries.${idx}.category`, v as ProductCategory);
+                              // Reset subcategory and custom name when category changes
+                              orderForm.setValue(`entries.${idx}.subcategory`, "" as unknown as ProductSubcategory);
+                              orderForm.setValue(`entries.${idx}.customProductName`, "");
+                            }}
                           >
-                            <SelectTrigger data-testid={`select-product-${idx}`}>
-                              <SelectValue />
+                            <SelectTrigger data-testid={`select-category-${idx}`}>
+                              <SelectValue placeholder="Pilih kategori" />
                             </SelectTrigger>
                             <SelectContent>
-                              {PRODUCTS.map((p) => (
-                                <SelectItem key={p} value={p}>
-                                  {p}
+                              {CATEGORIES.map((c) => (
+                                <SelectItem key={c} value={c}>
+                                  {c}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
+                          {orderForm.formState.errors.entries?.[idx]?.category && (
+                            <p className="text-xs text-red-500">
+                              {orderForm.formState.errors.entries[idx]?.category?.message}
+                            </p>
+                          )}
                         </div>
                         {fields.length > 1 && (
                           <button
@@ -526,6 +578,63 @@ export default function CreateReceipt() {
                           </button>
                         )}
                       </div>
+
+                      {/* Subcategory dropdown */}
+                      <div className="space-y-1.5">
+                        <Label>Jenis Produk</Label>
+                        <Select
+                          value={selectedSubcategory}
+                          onValueChange={(v) => {
+                            orderForm.setValue(`entries.${idx}.subcategory`, v as ProductSubcategory);
+                            // Clear custom name when switching away from Customized/Others
+                            if (v !== "Customized" && v !== "Others") {
+                              orderForm.setValue(`entries.${idx}.customProductName`, "");
+                            }
+                          }}
+                          disabled={!selectedCategory}
+                        >
+                          <SelectTrigger data-testid={`select-subcategory-${idx}`}>
+                            <SelectValue placeholder={selectedCategory ? "Pilih jenis produk" : "Pilih kategori terlebih dahulu"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableSubcategories.map((sc) => (
+                              <SelectItem key={sc} value={sc}>
+                                {sc}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {orderForm.formState.errors.entries?.[idx]?.subcategory && (
+                          <p className="text-xs text-red-500">
+                            {orderForm.formState.errors.entries[idx]?.subcategory?.message}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Custom product name (only for Customized or Others) */}
+                      <AnimatePresence>
+                        {showCustomName && (
+                          <motion.div
+                            key={`custom-name-${idx}`}
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="space-y-1.5 overflow-hidden"
+                          >
+                            <Label>Nama Produk</Label>
+                            <Input
+                              {...orderForm.register(`entries.${idx}.customProductName`)}
+                              data-testid={`input-custom-product-${idx}`}
+                              placeholder="Masukkan nama produk..."
+                            />
+                            {orderForm.formState.errors.entries?.[idx]?.customProductName && (
+                              <p className="text-xs text-red-500">
+                                {orderForm.formState.errors.entries[idx]?.customProductName?.message}
+                              </p>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
 
                       {/* Price section — toggle + single price OR per-size prices */}
                       <div className="space-y-3">
@@ -823,7 +932,15 @@ export default function CreateReceipt() {
                 </div>
                 {previewReceipt.items.map((item, i) => (
                   <div key={i} className="grid grid-cols-12 text-sm">
-                    <span className="col-span-5 text-foreground">{item.productType}</span>
+                    <span className="col-span-5 text-foreground">
+                      {item.category && item.subcategory
+                        ? item.subcategory === "Customized" || item.subcategory === "Others"
+                          ? item.customProductName
+                            ? `${item.category} — ${item.subcategory} (${item.customProductName})`
+                            : `${item.category} — ${item.subcategory}`
+                          : `${item.category} — ${item.subcategory}`
+                        : item.productType}
+                    </span>
                     <span className="col-span-2 text-center text-muted-foreground">
                       {item.size}
                     </span>

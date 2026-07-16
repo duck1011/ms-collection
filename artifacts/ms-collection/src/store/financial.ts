@@ -27,6 +27,10 @@ import {
   restoreProject as restoreProjectDB,
   migrateProjectArchiveFields,
 } from "@/lib/db";
+import {
+  syncArchiveToSupabase,
+  isSupabaseConfigured,
+} from "@/lib/supabase-sync";
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -195,6 +199,30 @@ export const useFinancialStore = create<FinancialStore>((set, get) => ({
           p.receiptCode === receiptCode ? updated : p
         ),
       }));
+
+      // Sync archive to Supabase (Phase 4)
+      if (isSupabaseConfigured()) {
+        try {
+          // Calculate production cost from spendings
+          const projectSpendings = get().spendings.filter(
+            (s) => s.receiptCode === receiptCode
+          );
+          const productionCost = projectSpendings.reduce(
+            (sum, s) => sum + s.amount,
+            0
+          );
+
+          await syncArchiveToSupabase(
+            receiptCode,
+            updated.projectName,
+            updated.customerName,
+            updated.contractValue,
+            productionCost
+          );
+        } catch (err) {
+          console.warn('[FinancialStore] Supabase archive sync error (non-fatal):', err);
+        }
+      }
     }
     return updated;
   },

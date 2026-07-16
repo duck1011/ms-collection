@@ -10,6 +10,28 @@ export type ProductType =
   | "Jaket Kelas"
   | "Custom Apparel";
 
+export type ProductCategory =
+  | "Seragam / Kamega"
+  | "Jersey"
+  | "Jaket"
+  | "Attribute";
+
+export type ProductSubcategory =
+  | "Sekolah"
+  | "Olahraga"
+  | "Customized"
+  | "Basket"
+  | "Voli"
+  | "Futsal"
+  | "Others"
+  | "Almamater"
+  | "Topi"
+  | "Kerudung"
+  | "Dasi / Hasduk"
+  | "Badge"
+  | "Paulit"
+  | "Sabuk";
+
 export type Size = "XS" | "S" | "M" | "L" | "XL" | "XXL";
 
 export type PriceMode = "single" | "bySize";
@@ -24,6 +46,10 @@ export interface OrderItem {
   subtotal: number;
   priceMode?: PriceMode;
   sizePrices?: SizePrices;
+  // New category/subcategory fields for backward compatibility
+  category?: ProductCategory;
+  subcategory?: ProductSubcategory;
+  customProductName?: string;
 }
 
 export interface Receipt {

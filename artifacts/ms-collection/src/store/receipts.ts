@@ -15,6 +15,11 @@ import {
   migrateExistingReceiptsToProjects,
   recalculateProject,
 } from "@/lib/db";
+import {
+  syncInvoiceToSupabase,
+  syncProjectToSupabase,
+  isSupabaseConfigured,
+} from "@/lib/supabase-sync";
 
 interface ReceiptStore {
   receipts: Receipt[];
@@ -88,6 +93,16 @@ export const useReceiptStore = create<ReceiptStore>((set, get) => ({
       updatedAt: new Date().toISOString(),
     };
     await saveProject(project);
+
+    // Sync to Supabase (Phase 1 & 2)
+    if (isSupabaseConfigured()) {
+      try {
+        await syncInvoiceToSupabase(receipt);
+        await syncProjectToSupabase(receipt);
+      } catch (err) {
+        console.warn('[ReceiptStore] Supabase sync error (non-fatal):', err);
+      }
+    }
 
     set((s) => ({ receipts: [...s.receipts, receipt] }));
   },

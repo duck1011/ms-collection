@@ -328,7 +328,15 @@ export async function downloadReceiptPDF(receipt: Receipt, settings: Settings) {
             View,
             { key: i, style: styles.tableRow },
             createElement(Text, { style: [styles.colQty, styles.colCellText] }, String(item.quantity)),
-            createElement(Text, { style: [styles.colBarang, styles.colCellText] }, `${item.productType} — ${item.size}`),
+            createElement(Text, { style: [styles.colBarang, styles.colCellText] }, (() => {
+              if (item.category && item.subcategory) {
+                if ((item.subcategory === "Customized" || item.subcategory === "Others") && item.customProductName) {
+                  return `${item.category} — ${item.subcategory}\n(${item.customProductName}) — ${item.size}`;
+                }
+                return `${item.category} — ${item.subcategory} — ${item.size}`;
+              }
+              return `${item.productType} — ${item.size}`;
+            })()),
             createElement(Text, { style: [styles.colHarga, styles.colCellText] }, formatRupiah(item.unitPrice)),
             createElement(Text, { style: [styles.colJumlah, styles.colCellText] }, formatRupiah(item.subtotal))
           )

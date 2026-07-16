@@ -80,7 +80,13 @@ function ReceiptDetailModal({ receipt, onClose }: { receipt: Receipt; onClose: (
             {receipt.items.map((item, i) => (
               <div key={i} className="flex justify-between text-sm">
                 <span className="text-muted-foreground">
-                  {item.productType} ({item.size}) × {item.quantity}
+                  {item.category && item.subcategory
+                    ? item.subcategory === "Customized" || item.subcategory === "Others"
+                      ? item.customProductName
+                        ? `${item.category} — ${item.subcategory} (${item.customProductName})`
+                        : `${item.category} — ${item.subcategory}`
+                      : `${item.category} — ${item.subcategory}`
+                    : item.productType} ({item.size}) × {item.quantity}
                 </span>
                 <span className="font-medium">{formatRupiah(item.subtotal)}</span>
               </div>

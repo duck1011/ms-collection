@@ -2,7 +2,6 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { authenticate, getPin } from "@/lib/auth";
-import { verifyOwnerLogin, isSupabaseConfigured } from "@/lib/supabase-sync";
 
 // ── Floating animation keyframes ────────────────────────────────────
 
@@ -104,7 +103,7 @@ function BackgroundGlow() {
   );
 }
 
-// ── Lock Screen ─────────────────────────────────────────────────────
+// ── Lock Screen (PIN only) ──────────────────────────────────────────
 
 export default function LockScreen() {
   const [, setLocation] = useLocation();
@@ -112,10 +111,6 @@ export default function LockScreen() {
   const [error, setError] = useState<string | null>(null);
   const [shaking, setShaking] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [showLoginForm, setShowLoginForm] = useState(false);
-  const [loggingIn, setLoggingIn] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const correctPin = getPin();
   const maxDigits = 6;
@@ -127,55 +122,7 @@ export default function LockScreen() {
   }, []);
 
   const handlePinComplete = useCallback(
-    async (enteredPin: string) => {
-      // If Supabase is configured, verify against owners table
-      if (isSupabaseConfigured()) {
-        // Show login form if not already shown
-        if (!showLoginForm) {
-          setShowLoginForm(true);
-          setPin("");
-          setError("Masukkan username dan password untuk login");
-          return;
-        }
-        // If we have username/password, verify against Supabase
-        if (username && password) {
-          setLoggingIn(true);
-          try {
-            const result = await verifyOwnerLogin(username, password, enteredPin);
-            if (result.success) {
-              setSuccess(true);
-              setTimeout(() => {
-                authenticate();
-                setLocation("/");
-              }, 500);
-            } else {
-              setError(result.message);
-              setShaking(true);
-              setTimeout(() => {
-                setShaking(false);
-                setPin("");
-              }, 600);
-            }
-          } catch {
-            setError("Gagal terhubung ke server");
-            setShaking(true);
-            setTimeout(() => {
-              setShaking(false);
-              setPin("");
-            }, 600);
-          } finally {
-            setLoggingIn(false);
-          }
-          return;
-        }
-        // Need username/password
-        setShowLoginForm(true);
-        setPin("");
-        setError("Masukkan username dan password");
-        return;
-      }
-
-      // Fallback to local PIN
+    (enteredPin: string) => {
       if (enteredPin === correctPin) {
         setSuccess(true);
         setTimeout(() => {
@@ -191,7 +138,7 @@ export default function LockScreen() {
         }, 600);
       }
     },
-    [correctPin, setLocation, showLoginForm, username, password]
+    [correctPin, setLocation]
   );
 
   const handleKeyPress = useCallback(
@@ -321,54 +268,19 @@ export default function LockScreen() {
             ))}
           </div>
 
-          {/* Login Form (shown when Supabase is configured) */}
-          <AnimatePresence>
-            {showLoginForm && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="w-full max-w-[240px] sm:max-w-[280px] space-y-3 overflow-hidden"
-              >
-                <div className="space-y-1.5">
-                  <label className="text-xs text-[#AEB4C2]">Username</label>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-[#AEB4C2]/50 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30"
-                    placeholder="Masukkan username"
-                    autoComplete="username"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs text-[#AEB4C2]">Password</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-[#AEB4C2]/50 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30"
-                    placeholder="Masukkan password"
-                    autoComplete="current-password"
-                  />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           {/* CTA Button */}
           <motion.button
             onClick={handleSubmit}
-            disabled={pin.length === 0 || success || loggingIn}
-            whileTap={pin.length > 0 && !loggingIn ? { scale: 0.97 } : {}}
-            whileHover={pin.length > 0 && !loggingIn ? { scale: 1.02 } : {}}
+            disabled={pin.length === 0 || success}
+            whileTap={pin.length > 0 ? { scale: 0.97 } : {}}
+            whileHover={pin.length > 0 ? { scale: 1.02 } : {}}
             className="w-full max-w-[240px] sm:max-w-[280px] h-14 rounded-full bg-gradient-to-r from-[#7B5CFF] via-[#A855F7] to-[#FF4D9D] text-white font-bold text-sm tracking-wider hover:shadow-[0_0_30px_rgba(123,92,255,0.3)] active:shadow-[0_0_20px_rgba(123,92,255,0.2)] transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none cursor-pointer"
           >
             <motion.span
               animate={success ? { opacity: 0 } : { opacity: 1 }}
               className="inline-block"
             >
-              {loggingIn ? "MEMVERIFIKASI..." : "MASUK"}
+              MASUK
             </motion.span>
           </motion.button>
         </div>

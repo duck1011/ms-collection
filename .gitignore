@@ -47,3 +47,16 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Environment files
+.env.local
+.env
+.env.*
+
+# Generated project files
+file_list.txt
+src_files.txt
+package-lock.json
+
+# Test artifacts
+testsprite_tests/

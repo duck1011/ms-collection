@@ -13,6 +13,7 @@ import {
   saveProject,
   cascadeDeleteReceipt,
   migrateExistingReceiptsToProjects,
+  migrateKamegaToKemeja,
   recalculateProject,
 } from "@/lib/db";
 import {
@@ -49,6 +50,12 @@ export const useReceiptStore = create<ReceiptStore>((set, get) => ({
   load: async () => {
     try {
       await seedDB();
+      // Run migration: old "Kamega" → "Kemeja"
+      try {
+        await migrateKamegaToKemeja();
+      } catch (err) {
+        console.warn('[ReceiptStore] Kamega→Kemeja migration error (non-fatal):', err);
+      }
       // Run migration for existing receipts to create projects
       try {
         await migrateExistingReceiptsToProjects();

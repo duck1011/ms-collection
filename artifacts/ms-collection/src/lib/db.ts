@@ -11,7 +11,7 @@ export type ProductType =
   | "Custom Apparel";
 
 export type ProductCategory =
-  | "Seragam / Kamega"
+  | "Seragam / Kemeja"
   | "Jersey"
   | "Jaket"
   | "Attribute";
@@ -267,6 +267,64 @@ function safeNumber(val: unknown, fallback: number = 0): number {
   if (typeof val === 'number' && !isNaN(val)) return val;
   const n = Number(val);
   return !isNaN(n) ? n : fallback;
+}
+
+// ── Migration: Fix old "Kamega" category strings in stored receipts ─
+
+export async function migrateKamegaToKemeja(): Promise<void> {
+  try {
+    const db = await initDB();
+
+    // Migrate receipts
+    const receipts = await db.getAll('receipts').catch(() => [] as Receipt[]);
+    let updatedReceipts = 0;
+    for (const receipt of receipts) {
+      if (!receipt || !receipt.items) continue;
+      let changed = false;
+      for (const item of receipt.items) {
+        // Use string comparison for migration of old data (previously stored as "Kamega")
+        if ((item.category as string) === "Seragam / Kamega") {
+          item.category = "Seragam / Kemeja" as ProductCategory;
+          changed = true;
+        }
+      }
+      if (changed) {
+        await db.put('receipts', receipt);
+        updatedReceipts++;
+      }
+    }
+    if (updatedReceipts > 0) {
+      console.log(`[Migration] Updated ${updatedReceipts} receipts: "Kamega" → "Kemeja"`);
+    }
+
+    // Migrate projects (category not stored on projects, but check anyway)
+    const projects = await db.getAll('projects').catch(() => [] as Project[]);
+    let updatedProjects = 0;
+    for (const project of projects) {
+      if (!project) continue;
+      // Projects don't store category, but check for any stray references
+      let changed = false;
+      if (project.projectName && project.projectName.includes("Kamega")) {
+        project.projectName = project.projectName.replace(/Kamega/g, "Kemeja");
+        changed = true;
+      }
+      if (project.customerName && project.customerName.includes("Kamega")) {
+        project.customerName = project.customerName.replace(/Kamega/g, "Kemeja");
+        changed = true;
+      }
+      if (changed) {
+        await db.put('projects', project);
+        updatedProjects++;
+      }
+    }
+    if (updatedProjects > 0) {
+      console.log(`[Migration] Updated ${updatedProjects} projects: "Kamega" → "Kemeja"`);
+    }
+
+    console.log(`[Migration] Kamega→Kemeja migration complete`);
+  } catch (err) {
+    console.error('[Migration] Error migrating Kamega→Kemeja:', err);
+  }
 }
 
 // ── Migration: Ensure all projects have archive fields ──────────────

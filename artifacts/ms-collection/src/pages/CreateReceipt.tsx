@@ -25,14 +25,14 @@ import { useToast } from "@/hooks/use-toast";
 // ── Category / Subcategory data ──────────────────────────────────────
 
 const CATEGORIES: ProductCategory[] = [
-  "Seragam / Kamega",
+  "Seragam / Kemeja",
   "Jersey",
   "Jaket",
   "Attribute",
 ];
 
 const SUBCATEGORIES: Record<ProductCategory, ProductSubcategory[]> = {
-  "Seragam / Kamega": ["Sekolah", "Olahraga", "Customized"],
+  "Seragam / Kemeja": ["Sekolah", "Olahraga", "Customized"],
   "Jersey": ["Basket", "Voli", "Futsal", "Others"],
   "Jaket": ["Almamater", "Customized"],
   "Attribute": ["Topi", "Kerudung", "Dasi / Hasduk", "Badge", "Paulit", "Sabuk", "Customized"],
@@ -97,7 +97,7 @@ type OrderData = z.infer<typeof orderSchema>;
 type PaymentData = z.infer<typeof paymentSchema>;
 
 const defaultEntry = () => ({
-  category: "Seragam / Kamega" as ProductCategory,
+  category: "Seragam / Kemeja" as ProductCategory,
   subcategory: "Sekolah" as ProductSubcategory,
   customProductName: "",
   unitPrice: "" as unknown as number,

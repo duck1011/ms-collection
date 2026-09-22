@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useReceiptStore } from "@/store/receipts";
 import { Receipt, OrderItem, ProductType, Size, PriceMode, SizePrices, ProductCategory, ProductSubcategory } from "@/lib/db";
@@ -19,7 +19,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, ChevronLeft, ChevronRight, Check, Download, Ruler } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Plus, Trash2, ChevronLeft, ChevronRight, Check, Download, Ruler, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 // ── Category / Subcategory data ──────────────────────────────────────
@@ -121,6 +128,25 @@ const defaultEntry = () => ({
 
 const STEPS = ["Informasi Klien", "Informasi Pesanan", "Pembayaran", "Konfirmasi"];
 
+// ── Blank initial state for create mode ──────────────────────────────
+// Dedicated blank initial-state constant: every new-note action resets the
+// forms from here, so nothing from a previously edited/viewed project can
+// leak into create mode. Order entries are rebuilt fresh via defaultEntry()
+// so no object references are shared between sessions.
+const BLANK_CREATE_STATE = {
+  client: { clientName: "", clientPhone: "", schoolOrOrganization: "", date: "" },
+  payment: { paymentStatus: "UNPAID" as const, paidAmount: 0, notes: "" },
+};
+
+/** Fresh client-form values for create mode (tanggal defaults to today). */
+const blankClientValues = (): ClientData => ({
+  ...BLANK_CREATE_STATE.client,
+  date: new Date().toISOString().split("T")[0],
+});
+
+/** Fresh payment-form values for create mode. */
+const blankPaymentValues = (): PaymentData => ({ ...BLANK_CREATE_STATE.payment });
+
 // ── Calculation helpers ──────────────────────────────────────────────
 
 /** Calculate total qty and subtotal for a single entry (supports both price modes) */
@@ -179,6 +205,60 @@ function getProductDisplayLabel(
   return `${category} — ${subcategory || ""}`;
 }
 
+/** Reconstruct order-form entries from flattened receipt items (one row per size) */
+function reconstructEntries(items: OrderItem[]): OrderData["entries"] {
+  const groups = new Map<
+    string,
+    { item: OrderItem; sizes: Record<Size, number> }
+  >();
+
+  for (const item of items) {
+    const key = [
+      item.category || "",
+      item.subcategory || "",
+      item.customProductName || "",
+      item.priceMode || "single",
+    ].join("|");
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        item,
+        sizes: { XS: 0, S: 0, M: 0, L: 0, XL: 0, XXL: 0 },
+      });
+    }
+    const group = groups.get(key)!;
+    group.sizes[item.size] = (group.sizes[item.size] || 0) + item.quantity;
+  }
+
+  return Array.from(groups.values()).map(({ item, sizes }) => {
+    const isBySize = item.priceMode === "bySize";
+    return {
+      category: (item.category || "Seragam / Kemeja") as ProductCategory,
+      subcategory: (item.subcategory || "Sekolah") as ProductSubcategory,
+      customProductName: item.customProductName || "",
+      unitPrice: isBySize ? ("" as unknown as number) : item.unitPrice,
+      sizes: {
+        XS: sizes.XS,
+        S: sizes.S,
+        M: sizes.M,
+        L: sizes.L,
+        XL: sizes.XL,
+        XXL: sizes.XXL,
+      },
+      sizePrices: isBySize
+        ? ((item.sizePrices || emptySizePrices()) as unknown as {
+            XS: number;
+            S: number;
+            M: number;
+            L: number;
+            XL: number;
+            XXL: number;
+          })
+        : undefined,
+    };
+  });
+}
+
 // ── Component ────────────────────────────────────────────────────────
 
 export default function CreateReceipt() {
@@ -187,9 +267,22 @@ export default function CreateReceipt() {
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [saving, setSaving] = useState(false);
   const [priceModes, setPriceModes] = useState<PriceMode[]>([]);
-  const { receipts, addReceipt, settings, load, loaded } = useReceiptStore();
+  const [editingCode, setEditingCode] = useState<string | null>(null);
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [savedReceipt, setSavedReceipt] = useState<Receipt | null>(null);
+  const { receipts, addReceipt, updateReceipt, settings, load, loaded } = useReceiptStore();
   const [, setLocation] = useLocation();
+  // Edit code comes from the route PATH ("/create/edit/:code"), not a query
+  // string: wouter's hash navigation strips "?edit=X" out of the hash into
+  // window.location.search, where it went stale and leaked between sessions.
+  const params = useParams();
+  const editCode =
+    typeof params.code === "string" && params.code !== "" ? params.code : null;
   const { toast } = useToast();
+  // Last handled session: "create" or "edit:<code>". Any incidental effect
+  // run that does not change the session (e.g. the receipts store refreshing
+  // after a save or a background sync) must never touch the form.
+  const initializedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!loaded) load();
@@ -197,12 +290,7 @@ export default function CreateReceipt() {
 
   const clientForm = useForm<ClientData>({
     resolver: zodResolver(clientSchema),
-    defaultValues: {
-      clientName: "",
-      clientPhone: "",
-      schoolOrOrganization: "",
-      date: new Date().toISOString().split("T")[0],
-    },
+    defaultValues: blankClientValues(),
   });
 
   const orderForm = useForm<OrderData>({
@@ -217,8 +305,84 @@ export default function CreateReceipt() {
 
   const paymentForm = useForm<PaymentData>({
     resolver: zodResolver(paymentSchema),
-    defaultValues: { paymentStatus: "UNPAID", paidAmount: 0, notes: "" },
+    defaultValues: blankPaymentValues(),
   });
+
+  // wouter reuses the same component instance for "/create" and
+  // "/create/edit/:code", so mode changes must be handled explicitly here.
+  // The session is derived from the route param: navigating to a plain
+  // "/create" (Buat Nota) switches the session and resets the form to blank,
+  // so a previously edited project can never leak into create mode.
+  useEffect(() => {
+    if (!loaded) return;
+
+    const mode = editCode ? `edit:${editCode}` : "create";
+
+    // Same session as the last handled navigation (e.g. the receipts store
+    // refreshing after a save or a background sync) — leave the form alone.
+    if (initializedRef.current === mode) return;
+
+    if (!editCode) {
+      // ── CREATE MODE: always reset to a fresh blank form ──
+      setEditingCode(null);
+      setClientData(null);
+      setOrderData(null);
+      setPriceModes([]);
+      setSuccessOpen(false);
+      setSavedReceipt(null);
+      setStep(0);
+
+      // Reset all forms from the dedicated blank initial-state constant
+      clientForm.reset(blankClientValues());
+      orderForm.reset({ entries: [defaultEntry()] });
+      paymentForm.reset(blankPaymentValues());
+
+      initializedRef.current = mode;
+      return;
+    }
+
+    // ── EDIT MODE: only initialize once per code ──
+
+    const existing = receipts.find((r) => r.receiptCode === editCode);
+    if (!existing) {
+      // Session intentionally NOT marked initialized so hydration can retry
+      // once the receipts store finishes loading (same as previous behavior).
+      toast({ title: "Nota tidak ditemukan", variant: "destructive" });
+      setLocation("/history");
+      return;
+    }
+
+    initializedRef.current = mode;
+    setEditingCode(existing.receiptCode);
+
+    // Prefill client form
+    clientForm.setValue("clientName", existing.clientName);
+    clientForm.setValue("clientPhone", existing.clientPhone);
+    clientForm.setValue("schoolOrOrganization", existing.schoolOrOrganization);
+    clientForm.setValue("date", existing.date);
+
+    // Reconstruct order entries from flattened items
+    const entries = reconstructEntries(existing.items);
+    orderForm.reset({ entries });
+    const modes = entries.map((e) =>
+      e.sizePrices ? ("bySize" as PriceMode) : ("single" as PriceMode)
+    );
+    setPriceModes(modes);
+
+    // Prefill payment form
+    paymentForm.setValue("paymentStatus", existing.paymentStatus);
+    paymentForm.setValue("paidAmount", existing.paidAmount);
+    paymentForm.setValue("notes", existing.notes || "");
+
+    // Set client/order data so preview works
+    setClientData({
+      clientName: existing.clientName,
+      clientPhone: existing.clientPhone,
+      schoolOrOrganization: existing.schoolOrOrganization,
+      date: existing.date,
+    });
+    setOrderData({ entries });
+  }, [editCode, loaded, receipts, clientForm, orderForm, paymentForm, setLocation, toast]);
 
   const watchEntries = orderForm.watch("entries");
 
@@ -312,13 +476,33 @@ export default function CreateReceipt() {
 
   const buildReceipt = useCallback(
     (payment: PaymentData): Receipt => {
-      const code = generateReceiptCode(receipts.map((r) => r.receiptCode));
       const items = flattenEntries(orderData!.entries);
       const total = items.reduce((s, i) => s + i.subtotal, 0);
       let paid = 0;
       if (payment.paymentStatus === "PAID") paid = total;
       else if (payment.paymentStatus === "PARTIALLY_PAID") paid = Number(payment.paidAmount) || 0;
 
+      // Edit mode: preserve original receiptCode, id, and createdAt
+      if (editingCode) {
+        const existing = receipts.find((r) => r.receiptCode === editingCode);
+        return {
+          id: existing?.id || editingCode,
+          receiptCode: editingCode,
+          clientName: clientData!.clientName,
+          clientPhone: clientData!.clientPhone,
+          schoolOrOrganization: clientData!.schoolOrOrganization,
+          date: clientData!.date,
+          createdAt: existing?.createdAt || new Date().toISOString(),
+          items,
+          totalPrice: total,
+          paidAmount: paid,
+          paymentStatus: payment.paymentStatus,
+          notes: payment.notes,
+        };
+      }
+
+      // Create mode: generate new code
+      const code = generateReceiptCode(receipts.map((r) => r.receiptCode));
       return {
         id: code,
         receiptCode: code,
@@ -334,23 +518,41 @@ export default function CreateReceipt() {
         notes: payment.notes,
       };
     },
-    [receipts, orderData, clientData, flattenEntries],
+    [receipts, orderData, clientData, flattenEntries, editingCode],
   );
 
-  const handleSave = async (withPDF = false) => {
+  const handleSave = async () => {
     const payment = paymentForm.getValues();
     const receipt = buildReceipt(payment);
     setSaving(true);
     try {
-      await addReceipt(receipt);
-      if (withPDF) await downloadReceiptPDF(receipt, settings);
-      toast({ title: "Nota berhasil disimpan", description: receipt.receiptCode });
-      setLocation("/history");
+      if (editingCode) {
+        await updateReceipt(receipt);
+      } else {
+        await addReceipt(receipt);
+      }
+      setSavedReceipt(receipt);
+      setSuccessOpen(true);
     } catch {
       toast({ title: "Gagal menyimpan", variant: "destructive" });
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!savedReceipt) return;
+    try {
+      await downloadReceiptPDF(savedReceipt, settings);
+    } catch {
+      toast({ title: "Gagal mengunduh PDF", variant: "destructive" });
+    }
+  };
+
+  const handleBackToHistory = () => {
+    setSuccessOpen(false);
+    setSavedReceipt(null);
+    setLocation("/history");
   };
 
   const previewReceipt =
@@ -359,8 +561,10 @@ export default function CreateReceipt() {
   return (
     <div className="p-6 md:p-8 max-w-2xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Buat Nota</h1>
-        <p className="text-sm text-muted-foreground mt-1">Isi informasi pesanan baru</p>
+        <h1 className="text-2xl font-bold">{editingCode ? "Edit Nota" : "Buat Nota"}</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {editingCode ? `Mengedit nota ${editingCode}` : "Isi informasi pesanan baru"}
+        </p>
       </div>
 
       {/* Stepper */}
@@ -980,38 +1184,62 @@ export default function CreateReceipt() {
               </div>
             </div>
 
-            <div className="flex justify-between gap-3">
+            {/* Sticky single primary action */}
+            <div
+              className="sticky bottom-24 md:bottom-0 z-10 -mx-6 md:-mx-8 px-6 md:px-8 pt-3 border-t border-border/60 bg-background/95 backdrop-blur-sm"
+              style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+            >
               <Button
                 type="button"
-                variant="outline"
-                onClick={() => setStep(2)}
-                data-testid="button-back-step3"
+                onClick={handleSave}
+                disabled={saving}
+                className="w-full min-h-[48px] text-sm font-semibold"
+                data-testid="button-save-only"
               >
-                <ChevronLeft className="w-4 h-4 mr-1" /> Kembali
+                <Check className="w-4 h-4" />
+                {editingCode ? "Simpan Perubahan" : "Buat Nota"}
               </Button>
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => handleSave(false)}
-                  disabled={saving}
-                  data-testid="button-save-only"
-                >
-                  Simpan Saja
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => handleSave(true)}
-                  disabled={saving}
-                  data-testid="button-save-download"
-                >
-                  <Download className="w-4 h-4 mr-1" /> Simpan & Unduh PDF
-                </Button>
-              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Success Bottom Sheet */}
+      <Sheet open={successOpen} onOpenChange={(open) => !open && setSuccessOpen(false)}>
+        <SheetContent side="bottom" className="rounded-t-2xl">
+          <div className="flex flex-col items-center pt-2 pb-4">
+            <div className="w-14 h-14 rounded-full bg-green-500/15 flex items-center justify-center mb-4">
+              <Check className="w-7 h-7 text-green-500" />
+            </div>
+            <SheetHeader className="text-center">
+              <SheetTitle className="text-lg font-semibold">
+                {editingCode ? "Perubahan berhasil disimpan" : "Nota berhasil dibuat"}
+              </SheetTitle>
+              <SheetDescription className="text-sm text-muted-foreground">
+                {editingCode ? "Perubahan telah berhasil diperbarui." : "Nota siap digunakan."}
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="w-full space-y-3 mt-6">
+              <Button
+                onClick={handleDownloadPDF}
+                className="w-full min-h-[48px] text-sm font-semibold"
+                data-testid="button-success-download"
+              >
+                <Download className="w-4 h-4" /> Download PDF
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleBackToHistory}
+                className="w-full min-h-[48px] text-sm"
+                data-testid="button-success-back"
+              >
+                <ArrowLeft className="w-4 h-4" /> Kembali ke Riwayat
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

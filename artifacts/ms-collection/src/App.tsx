@@ -46,6 +46,14 @@ function Router() {
         <Route path="/lock" component={LockScreen} />
         <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
         <Route path="/create" component={() => <ProtectedRoute component={CreateReceipt} />} />
+        {/* Edit mode shares CreateReceipt — the code is carried as a PATH segment
+            (not a "?edit=" query) because wouter's hash navigation moves query
+            strings out of the hash into window.location.search, where they go
+            stale and leak between edit/create sessions. */}
+        <Route
+          path="/create/edit/:code"
+          component={() => <ProtectedRoute component={CreateReceipt} />}
+        />
         <Route path="/history" component={() => <ProtectedRoute component={History} />} />
         <Route path="/financial" component={() => <ProtectedRoute component={FinancialDashboard} />} />
         <Route path="/settings" component={() => <ProtectedRoute component={SettingsPage} />} />
